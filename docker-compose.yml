@@ -63,6 +63,9 @@ services:
     container_name: pmplus-step5
     volumes:
       - ./shared/data:/app/shared_data
+      # PGP braucht volle Einsicht ins Context Engineering (siehe Konzept-README.md) ->
+      # read-only Zugriff auf die kuratierten RAG-Dokumente aus Step 4.
+      - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
     networks:
       - pmplus-net
     depends_on:
