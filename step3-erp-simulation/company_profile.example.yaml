@@ -1,0 +1,100 @@
+# Unternehmensprofil-Template für Step 3 (ERP-Simulation)
+#
+# Aus einer Datei in diesem Format soll main.py später mehrere zusammenhängende
+# CSV-Tabellen generieren, die als simuliertes ERP-Ausgabe-Set gelten
+# (Ablage in shared/data/, Weiterverwendung in Step 4/5). Jeder Abschnitt ist
+# unten kommentiert mit: wofür er gebraucht wird und welche CSV-Tabelle(n)
+# daraus entstehen.
+#
+# Kopiere diese Datei z. B. nach company_profile.yaml und passe sie pro
+# simuliertem Unternehmen an.
+
+company:
+  name: "Musterfabrik GmbH"
+  industry: "Automobilzulieferer"        # beeinflusst Produktkomplexität/Variantenvielfalt
+  fertigungsart: "make-to-order"         # make-to-stock | make-to-order | hybrid
+  layout: "werkstattfertigung"           # werkstattfertigung (job shop) | fliessfertigung (flow shop)
+
+# Steuert Umfang/Reproduzierbarkeit der generierten Daten (main.py)
+simulation:
+  weeks: 12                              # Simulationshorizont in Wochen
+  random_seed: 42                        # fuer reproduzierbare Laeufe
+
+# -> orders.csv, bom.csv, routings.csv
+products:
+  - id: "P-001"
+    name: "Getriebegehäuse"
+    variants: 3                          # Anzahl Produktvarianten (Variantenvielfalt)
+    bom:                                 # Stückliste -> bom.csv
+      - component: "Rohgussteil"
+        quantity: 1
+        lead_time_days: 5                # Lieferzeit des Zulieferteils (Engpassquelle)
+      - component: "Lagerbuchse"
+        quantity: 2
+        lead_time_days: 2
+    routing:                             # Arbeitsplan -> routings.csv
+      - operation: "Fraesen"
+        work_center: "WC-Fraese-01"
+        duration_minutes: 45
+        setup_minutes: 20
+      - operation: "Bohren"
+        work_center: "WC-Bohr-02"
+        duration_minutes: 15
+        setup_minutes: 10
+
+# -> work_centers.csv, calendar.csv
+resources:
+  work_centers:
+    - id: "WC-Fraese-01"
+      capacity_hours_per_shift: 8
+      shifts_per_day: 2
+      availability_pct: 0.9             # Puffer fuer Ruesten/Kleinstoerungen
+    - id: "WC-Bohr-02"
+      capacity_hours_per_shift: 8
+      shifts_per_day: 1
+      availability_pct: 0.85
+  calendar:
+    working_days: ["Mo", "Di", "Mi", "Do", "Fr"]
+    holidays: ["2026-12-25", "2026-01-01"]
+
+# -> orders.csv (Auftragsvolumen, Termine, Prioritaeten)
+demand:
+  orders_per_week: 40
+  seasonality: "Q4-peak"                # z. B. saisonale Nachfragespitzen
+  rush_order_share: 0.15                # Anteil Eilauftraege an allen Auftraegen
+  due_date_distribution: "uniform(3,14)"  # Tage zwischen Auftragseingang und Liefertermin
+
+# Zentrale Konfliktquellen: ohne diese gibt es später (Step 5/7) keine
+# sinnvollen Paarvergleiche zwischen Planungsalternativen, an denen ein PGP
+# etwas lernen könnte -> zusätzliche Spalten/Events in orders.csv bzw. ein
+# eigenes disruptions.csv
+disruptions:
+  - type: "machine_breakdown"
+    work_center: "WC-Fraese-01"
+    probability_per_week: 0.10
+    downtime_hours: [2, 8]              # [min, max]
+  - type: "material_shortage"
+    component: "Rohgussteil"
+    probability_per_week: 0.05
+    delay_days: [1, 5]                  # [min, max]
+  - type: "priority_change"
+    probability_per_order: 0.10         # nachtraeglich geaenderte Prioritaet/Termin
+
+# Zielgroessen, gegen die Planungsalternativen später bewertet werden
+# (Massstab fuer Preference-Urteile in Step 5) -> kpi_targets.csv oder
+# Metadaten-Header in orders.csv
+kpis:
+  on_time_delivery_target_pct: 95
+  utilization_target_pct: 85
+  cost_per_order_eur: 120
+
+# Welche CSV-Tabellen main.py aus diesem Profil erzeugen soll
+output:
+  tables:
+    - orders.csv
+    - bom.csv
+    - routings.csv
+    - work_centers.csv
+    - calendar.csv
+    - inventory.csv
+    - disruptions.csv
