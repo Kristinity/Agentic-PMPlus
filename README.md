@@ -14,6 +14,10 @@ Ergebnis 1: 𝝉 ist klein -> LLM liegt richtig - Produktionsplan und Arbeitspla
 Ergebnis 2.1.: 𝝉 ist groß -> LLM liegt falsch - Flag & Trigger an Experten zur neuvalidierung /Anpassung der Auftragspriorisierung
 Ergebnis 2.2.: Active Learning Loop, Erweiterung des Context Engineering um neuen Fall
 
+# Prestep
+- Branches aufbauen
+- Dockercontainer aufbauen
+
 # Step 1 - Recherche der Feasability der Konzepidee
 Agenten aufsetzen, der nach solchen Ansätzen, Realisierungen und Bestpractices sucht. Diese sollen dokumentiert werden.
 
