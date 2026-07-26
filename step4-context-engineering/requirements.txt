@@ -4,3 +4,4 @@ chromadb
 sentence-transformers
 pandas
 python-dotenv
+python-frontmatter
