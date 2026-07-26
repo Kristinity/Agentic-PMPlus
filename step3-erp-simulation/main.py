@@ -21,6 +21,10 @@ PROFILE_PATH = os.environ.get(
 # Relativ zu WORKDIR /app im Container -> entspricht dem gemounteten
 # ./shared/data:/app/shared_data aus docker-compose.yml.
 OUTPUT_DIR = os.environ.get("SHARED_DATA_DIR", "shared_data")
+# Overrides fuer reproduzierbare Laeufe ausserhalb von "heute" (z. B. ein
+# abgeschlossenes Kalenderjahr simulieren) -> sonst date.today()/Profil-weeks.
+START_DATE = os.environ.get("START_DATE")
+WEEKS = os.environ.get("WEEKS")
 
 DAY_NAME_BY_WEEKDAY = {0: "Mo", 1: "Di", 2: "Mi", 3: "Do", 4: "Fr", 5: "Sa", 6: "So"}
 
@@ -229,12 +233,12 @@ def generate_inventory(bom_rows, safety_factor=1.5):
 def main():
     profile = load_profile(PROFILE_PATH)
     sim_cfg = profile.get("simulation", {})
-    weeks = sim_cfg.get("weeks", 12)
+    weeks = int(WEEKS) if WEEKS else sim_cfg.get("weeks", 12)
     seed = sim_cfg.get("random_seed", 42)
     rng = random.Random(seed)
     faker = Faker()
     faker.seed_instance(seed)
-    start_date = date.today()
+    start_date = date.fromisoformat(START_DATE) if START_DATE else date.today()
 
     products = profile["products"]
     resources = profile["resources"]

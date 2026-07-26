@@ -34,12 +34,12 @@ simulation:
 customers:
   - name: "Becksbrauerei"
     region: "Hamburg"
-    revenue_share: 0.72                  # Anteil am Gesamtumsatz von K.S.
+    revenue_share: 0.68                  # Anteil am Gesamtumsatz von K.S.
     demand_coverage_share: 0.20          # K.S. deckt ca. 20% von Becks' Gesamtbedarf
     is_pool: false
   - name: "Lokale Brauereien (Sammelposten)"
     region: "diverse, norddeutscher Raum"
-    revenue_share: 0.28
+    revenue_share: 0.32
     is_pool: true
 
 # -> orders.csv, bom.csv, routings.csv
@@ -149,7 +149,7 @@ resources:
 demand:
   orders_per_week: 60                    # viele Kleinauftraege typisch fuer Verpackungszulieferer
   seasonality: "Q2-Q3-peak"              # Sommer-/Grillsaison = hoeherer Bierabsatz -> mehr Nachfrage
-  rush_order_share: 0.08
+  rush_order_share: 0.13
   due_date_distribution: "uniform(5,21)"  # Tage zwischen Auftragseingang und Liefertermin
 
 # Zentrale Konfliktquellen: ohne diese gibt es später (Step 5/7) keine
@@ -166,7 +166,7 @@ disruptions:
     probability_per_week: 0.06
     delay_days: [2, 10]                  # [min, max] - Stahl-/Weissblech-Lieferketten sind volatil
   - type: "priority_change"
-    probability_per_order: 0.12          # Grosskunde Becks priorisiert kurzfristig um
+    probability_per_order: 0.32          # Pitch-Narrativ: haeufiger Prio-Wechsel, Treiber weg von reiner Lagerfertigung
 
 # Zielgroessen, gegen die Planungsalternativen später bewertet werden
 # (Massstab fuer Preference-Urteile in Step 5) -> kpi_targets.csv oder
