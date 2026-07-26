@@ -1,79 +1,75 @@
-# Agentic-PMPlus
-Wie kann ein LLM wissen, was es nicht weiß? Prüfung der Implementierung einer unabhängigen, lokalen Prüfinstanz zur Wahrung der Qualität des LLM-Outputs, zur Wahrung der Data Privacy und zur Optimierung der Tokenkosten.
+# PMPlus – Docker-Workspace
 
-# Konzeptidee
-**Umfeld:** KMU in DE, PPS (typische Ingenieurtätigkeiten)
-**Ziel:** Den teuersten Faktor im Prozess – den Menschen – nur dann einsetzen, wenn es wirklich nötig ist.
-**Ausgangssituation:** Wenig „gut" strukturierte Daten für ein eigenes LLM oder das Feintuning/Training eines Drittanbieter-LLMs.
+Ein Container pro Step aus dem Agentic-PMPlus-Konzept. Jeder Step ist isoliert
+(eigenes `Dockerfile`, eigene `requirements.txt`, eigenes `main.py`), teilt sich
+aber ein gemeinsames Datenverzeichnis (`shared/`), damit z. B. die simulierten
+ERP-CSVs aus Step 3 in Step 4/5 weiterverwendet werden können.
 
-Ein lokaler **Preference GP (PGP)** erstellt anhand der vollen Dateneinsicht in das Context Engineering bei Eingang von Aufträgen eine abnehmend priorisierte Reihenfolge der abzuarbeitenden Aufträge. Die gleiche Prognose (Priorisierung) erstellt auch das LLM – mit eingeschränktem Zugriff auf Unternehmensdaten und kleinstmöglichem Kontext.
+## Struktur
 
-Die Prognose der Auftragspriorisierung wird anhand der prognostizierten Durchlaufzeit (DZ), aktuellen Maschinenverfügbarkeit, vertraglich festgelegtem Bruttopreis, Materialverfügbarkeit, Abhängigkeiten zu laufenden Aufträgen, Mitarbeiter-Coverage (Urlaubszeiten/Krankmeldungen) und Lieferantenbewertung aufgestellt.
+```
+PMPlus/
+├── docker-compose.yml
+├── .env.example          # -> nach .env kopieren, ANTHROPIC_API_KEY eintragen
+├── setup-branches.sh     # Prestep: legt Git-Branches pro Step an (auf dem Host, nicht im Container)
+├── shared/
+│   ├── data/             # z.B. simulierte ERP-CSVs (Step 3)
+│   ├── context/          # RAG-Index / Context Engineering (Step 4)
+│   └── models/           # trainierte PGP-Modelle (Step 5)
+├── prestep/               # Setup-Check, keine fachliche Logik
+├── step1-feasibility/     # Recherche-Agent (Feasibility)
+├── step2-limits/          # Grenzen technisch/ökonomisch
+├── step3-erp-simulation/  # ERP-Daten simulieren
+├── step4-context-engineering/  # RAG aufsetzen
+├── step5-pgp/             # Preference GP (μ, σ)
+├── step6-calibration/     # τ/σ-Schwellenwerte (Risk-Coverage)
+├── step7-active-learning/ # Active Learning Loop
+└── step8-live-test/       # Live-Test / Integration
+```
 
-**Volle Einsicht** auf ERP & Context Engineering hat der PGP. **Eingeschränkte Einsicht** hat das LLM; dafür erhält es zusätzlich unstrukturierte Informationen (z. B. Notizen), die dem PGP nicht zugänglich sind.
+## Setup
 
-## Die zentrale Idee: Der PGP liefert zwei Werte, nicht nur einen
+1. **Branches anlegen** (einmalig, auf dem Host-Git-Repo):
+   ```bash
+   ./setup-branches.sh
+   ```
+   Damit du pro Step in einem eigenen Branch arbeiten kannst.
 
-Ein Preference GP gibt bei jeder Vorhersage nicht nur eine Rangfolge aus, sondern immer **zwei Größen gleichzeitig** – aus einem einzigen Modell, ohne zusätzlichen Aufwand:
+2. **API-Key hinterlegen:**
+   ```bash
+   cp .env.example .env
+   # ANTHROPIC_API_KEY=... eintragen
+   ```
 
-| Wert | Was er bedeutet | Bildlich gesprochen |
-|---|---|---|
-| **μ (Rang-Prognose)** | Die vom PGP berechnete Auftragsreihenfolge | „Das ist unsere Einschätzung der Priorität." |
-| **σ (Selbstunsicherheit)** | Wie sicher sich der PGP bei genau *dieser* Einschätzung ist | „Und so sicher sind wir uns dabei." |
+3. **Alle Container bauen:**
+   ```bash
+   docker compose build
+   ```
 
-Aus dem Vergleich von **μ (PGP)** gegen die Rang-Prognose des **LLM** ergibt sich die Differenz **τ** (Tau): die Meinungsverschiedenheit zwischen den beiden unabhängigen Einschätzungen. Aus **σ** ergibt sich ein zweites, unabhängiges Signal: Wie tragfähig ist die PGP-Einschätzung selbst – unabhängig davon, ob das LLM zustimmt oder nicht?
+## Nutzung
 
-**Warum das wichtig ist:** Ein niedriges τ (LLM und PGP stimmen überein) wirkt beruhigend – ist es aber nicht immer. Wenn der PGP bei einem Sonderauftrag mit wenig Historie selbst unsicher ist (hohes σ), kann eine zufällige Übereinstimmung mit dem LLM eine Sicherheit vortäuschen, die nicht existiert. Erst die Kombination beider Werte liefert ein belastbares Bild:
+**Einen einzelnen Step laufen lassen** (z. B. Step 3):
+```bash
+docker compose up step3-erp-simulation
+```
 
-| | PGP ist sich sicher (σ niedrig) | PGP ist sich unsicher (σ hoch) |
-|---|---|---|
-| **LLM & PGP einig (τ niedrig)** | ✅ Robuste Übereinstimmung – automatisch weiter | ⚠️ Trügerische Ruhe – trotz Einigkeit prüfen |
-| **LLM & PGP uneinig (τ hoch)** | 🔎 Klarer Fall für Experten-Review | 🔎 Klarer Fall für Experten-Review |
+**Alle Steps der Reihe nach laufen lassen** (respektiert die `depends_on`-Kette):
+```bash
+docker compose up
+```
 
-Es wird **nur ein PGP** benötigt – nicht zwei. Wichtig ist lediglich, dass PGP und LLM ihre Einschätzung unabhängig voneinander, ohne gegenseitige Beeinflussung, abgeben. Nur so bleibt die Meinungsverschiedenheit (τ) aussagekräftig; würde man dem LLM die PGP-Einschätzung vorab zeigen, correlated man künstlich beide Fehler und die Kontrolllogik verliert ihren Sinn.
+**Interaktiv in einem Step arbeiten** (z. B. um Step 5 zu entwickeln):
+```bash
+docker compose run --rm step5-pgp bash
+```
 
-## Ablauf pro Auftrag
+**In VS Code direkt in einem Step-Container öffnen:**
+Die `.devcontainer/<step>/devcontainer.json`-Dateien sind bereits vorbereitet.
+`Dev Containers: Reopen in Container` → passenden Step auswählen.
 
-1. Auftrag kommt ins System.
-2. PGP berechnet Rang-Prognose **μ** und Selbstunsicherheit **σ** in einem Schritt.
-3. LLM berechnet, unabhängig und mit eingeschränktem Kontext, seine eigene Rang-Prognose.
-4. Differenz **τ** zwischen beiden Rang-Prognosen wird berechnet.
-5. Eskalationsregel: **τ zu groß ODER σ zu groß → Flag an den Experten (Produktionsplaner)**.
+## Nächste Schritte
 
-## Ergebnisse
-
-- **Ergebnis 1** – τ klein UND σ niedrig: LLM liegt vermutlich richtig, PGP ist sich sicher → Produktionsplan und Arbeitsplan werden geschrieben und zur Freigabe an den Verantwortlichen geschickt.
-- **Ergebnis 2.1** – τ groß (unabhängig von σ): LLM und PGP widersprechen sich → Flag & Trigger an den Experten zur Neuvalidierung/Anpassung der Auftragspriorisierung.
-- **Ergebnis 2.2** – τ klein, aber σ hoch: trügerische Übereinstimmung → ebenfalls Flag an den Experten, da die PGP-Einschätzung selbst noch nicht tragfähig ist.
-- **Ergebnis 3** – Active Learning Loop: jede Experten-Entscheidung (aus 2.1 oder 2.2) erweitert das Context Engineering um einen neuen, validierten Fall und verbessert damit sowohl PGP als auch LLM-Kontext für zukünftige Aufträge.
-
-# Prestep
-- Branches aufbauen
-- Dockercontainer aufbauen
-
-# Step 1 - Recherche der Feasibility der Konzeptidee
-Agenten aufsetzen, der nach solchen Ansätzen, Realisierungen und Best Practices sucht. Diese sollen dokumentiert werden.
-
-# Step 2 - Grenzen (Technisch & Ökonomisch)
-Was kann abgedeckt werden, und was nicht? Wann wird der PGP zu aufwändig (O³)?
-
-# Step 3 - ERP-Daten simulieren
-CSVs erstellen lassen (als Beispiel-Datenbasis).
-
-# PRÄMISSE: Step 4 - Context Engineering aufbauen
-RAGs aufsetzen.
-
-# PRÄMISSE: Step 5 - PGP bauen
-- Agent soll einen PGP aufbauen, der bei jeder Vorhersage **beide Werte** liefert: Rang-Prognose (μ) und Selbstunsicherheit (σ).
-- Sicherstellen, dass PGP und LLM unabhängig voneinander urteilen (keine gegenseitige Einsicht in die jeweils andere Prognose vor der τ-Berechnung).
-
-# Step 6 - τ- und σ-Kalibrierung
-- Skalen von τ (Rangdifferenz) und σ (Varianz) sind nicht direkt vergleichbar und dürfen nicht einfach addiert oder gleich gewichtet werden.
-- Für beide Größen getrennt Schwellenwerte (τ₀, σ₀) über Risk-Coverage-Kurven festlegen (z. B. mittels Conformal Risk Control), statt sie ad hoc zu schätzen.
-- Eskalationsregel als ODER-Verknüpfung festlegen: τ > τ₀ ODER σ > σ₀ → Flag an Experten.
-
-# KONZEPT: Step 7 - Active Learning Loop bauen
-- Jede Experten-Entscheidung aus dem Eskalationsschritt als neuen, validierten Trainingsfall in das Context Engineering zurückführen.
-- Threshold-/Risk-Coverage-Kalibrierung (aus Step 6) regelmäßig mit neuen Fällen überprüfen und nachschärfen.
-
-# Step 8 - LIVE TEST
+Aktuell enthält jedes `main.py` nur ein Platzhalter-Skript. Fachliche Logik pro
+Step ergänzen (siehe README-Konzeptbeschreibung, Steps 1–8). Steps 4, 5 und 7
+sind als "PRÄMISSE"/"KONZEPT" markiert – dort lohnt es sich, zuerst grob zu
+prototypen, bevor die Docker-Struktur weiter verfeinert wird.

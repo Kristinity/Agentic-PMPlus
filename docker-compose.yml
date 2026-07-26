@@ -1,0 +1,107 @@
+version: "3.9"
+
+services:
+
+  prestep:
+    build: ./prestep
+    container_name: pmplus-prestep
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+
+  step1-feasibility:
+    build: ./step1-feasibility
+    env_file:
+      - .env
+    container_name: pmplus-step1
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - prestep
+
+  step2-limits:
+    build: ./step2-limits
+    env_file:
+      - .env
+    container_name: pmplus-step2
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step1-feasibility
+
+  step3-erp-simulation:
+    build: ./step3-erp-simulation
+    container_name: pmplus-step3
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step2-limits
+
+  step4-context-engineering:
+    build: ./step4-context-engineering
+    env_file:
+      - .env
+    container_name: pmplus-step4
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step3-erp-simulation
+
+  step5-pgp:
+    build: ./step5-pgp
+    env_file:
+      - .env
+    container_name: pmplus-step5
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step4-context-engineering
+
+  step6-calibration:
+    build: ./step6-calibration
+    container_name: pmplus-step6
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step5-pgp
+
+  step7-active-learning:
+    build: ./step7-active-learning
+    env_file:
+      - .env
+    container_name: pmplus-step7
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step6-calibration
+
+  step8-live-test:
+    build: ./step8-live-test
+    env_file:
+      - .env
+    container_name: pmplus-step8
+    volumes:
+      - ./shared/data:/app/shared_data
+    networks:
+      - pmplus-net
+    depends_on:
+      - step7-active-learning
+
+networks:
+  pmplus-net:
+    driver: bridge

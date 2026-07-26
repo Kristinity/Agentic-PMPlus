@@ -1,0 +1,6 @@
+anthropic
+langchain
+chromadb
+sentence-transformers
+pandas
+python-dotenv

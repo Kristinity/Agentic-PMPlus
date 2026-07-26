@@ -1,0 +1,12 @@
+{
+  "name": "PMPlus - step7-active-learning",
+  "dockerComposeFile": ["../../docker-compose.yml"],
+  "service": "step7-active-learning",
+  "workspaceFolder": "/app",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}

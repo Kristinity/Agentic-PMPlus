@@ -1,0 +1,12 @@
+{
+  "name": "PMPlus - step8-live-test",
+  "dockerComposeFile": ["../../docker-compose.yml"],
+  "service": "step8-live-test",
+  "workspaceFolder": "/app",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}
