@@ -17,7 +17,7 @@ tags: ["sla", "becks", "liefertreue", "eskalation"]
 
 # Liefertreue-Vereinbarung Becksbrauerei
 
-Becksbrauerei ist mit 72 % Umsatzanteil der wichtigste Kunde von K.S. GmbH
+Becksbrauerei ist mit 68 % Umsatzanteil der wichtigste Kunde von K.S. GmbH
 und verlangt vertraglich eine On-Time-Delivery-Quote von 98 % (siehe
 `kpis.on_time_delivery_target_pct` im ERP-Unternehmensprofil).
 
