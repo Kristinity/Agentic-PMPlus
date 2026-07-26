@@ -88,13 +88,14 @@ def build_index(docs, as_of):
     return collection, skipped
 
 
-def retrieve(collection, query, kunde=None, produkt=None, work_center=None, k=TOP_K):
+def retrieve(collection, query, kunde=None, produkt=None, work_centers=None, k=TOP_K):
     """Holt breiter als k (Vector-Seite), filtert danach in Python auf
     passende/kundenuebergreifende Metadaten (KG-Seite) - vermeidet
     versionsabhaengige chromadb where-Filter-Syntax fuer diesen Prototyp."""
     n = min(max(k * 3, k), max(collection.count(), 1))
     if n == 0:
         return []
+    work_centers = work_centers or []
     result = collection.query(query_texts=[query], n_results=n)
     hits = []
     for doc, meta, dist in zip(
@@ -104,7 +105,10 @@ def retrieve(collection, query, kunde=None, produkt=None, work_center=None, k=TO
             continue
         if produkt and meta["produkt"] and meta["produkt"] != produkt:
             continue
-        if work_center and meta["work_center"] and meta["work_center"] != work_center:
+        # work_center: Dokument gilt fuer eine bestimmte Station -> passt nur,
+        # wenn diese Station irgendwo im Routing des Auftrags vorkommt (nicht
+        # nur am ersten Arbeitsgang).
+        if work_centers and meta["work_center"] and meta["work_center"] not in work_centers:
             continue
         hits.append({"text": doc, "metadata": meta, "distance": dist})
         if len(hits) >= k:
@@ -122,7 +126,7 @@ def assemble_context(order, work_centers, collection):
         query,
         kunde=order["customer"],
         produkt=order["product_id"],
-        work_center=work_centers[0] if work_centers else None,
+        work_centers=work_centers,
     )
     return {"erp_facts": order, "work_centers": work_centers, "retrieved_context": hits}
 
