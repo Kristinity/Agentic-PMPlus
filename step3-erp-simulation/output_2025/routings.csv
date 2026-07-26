@@ -1,0 +1,9 @@
+product_id,sequence,operation,work_center,duration_minutes,setup_minutes
+P-KK,1,Stanzen,WC-Stanze-01,2,15
+P-KK,2,Formen,WC-Presse-KK-02,2,10
+P-KK,3,Bedrucken,WC-Druck-03,3,20
+P-KK,4,Dichtungseinlage einbringen,WC-Dichtung-04,1,5
+P-DV,1,Stanzen,WC-Stanze-01,2,15
+P-DV,2,Gewindeformen,WC-Presse-DV-05,3,12
+P-DV,3,Bedrucken,WC-Druck-03,3,20
+P-DV,4,Dichtungseinlage einbringen,WC-Dichtung-04,1,5
