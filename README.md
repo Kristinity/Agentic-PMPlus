@@ -69,7 +69,14 @@ Die `.devcontainer/<step>/devcontainer.json`-Dateien sind bereits vorbereitet.
 
 ## Nächste Schritte
 
-Aktuell enthält jedes `main.py` nur ein Platzhalter-Skript. Fachliche Logik pro
-Step ergänzen (siehe README-Konzeptbeschreibung, Steps 1–8). Steps 4, 5 und 7
-sind als "PRÄMISSE"/"KONZEPT" markiert – dort lohnt es sich, zuerst grob zu
-prototypen, bevor die Docker-Struktur weiter verfeinert wird.
+- **Implementiert:** Step 3 (ERP-CSV-Generator), Step 4 (RAG-Kontext-Assemblierung),
+  Step 5 (PGP mit μ/σ-Ausgabe) haben funktionsfähige `main.py`.
+- **Recherche/Analyse statt Code:** Step 1 (`Benchmark-Analyse.md`, `Instructions.md`)
+  und Step 2 (`Systemgrenzen.md`) haben ihr eigentliches Ergebnis als Markdown-Dokument,
+  `main.py` bleibt dort bewusst Platzhalter.
+- **Noch offen:** Step 6 (τ/σ-Kalibrierung), Step 7 (Active Learning Loop), Step 8
+  (Live-Test) – `main.py` ist dort noch Platzhalter, Fachlogik fehlt.
+
+Steps 4, 5 und 7 sind in der Konzeptbeschreibung als "PRÄMISSE"/"KONZEPT" markiert –
+dort lohnt es sich, zuerst grob zu prototypen, bevor die Docker-Struktur weiter
+verfeinert wird.
