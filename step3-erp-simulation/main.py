@@ -106,21 +106,42 @@ def generate_calendar(resources, start_date, weeks):
     return rows
 
 
+def seasonal_multiplier(seasonality, week, weeks):
+    """Sehr einfache saisonale Gewichtung: 'Q4-peak' verstaerkt das letzte
+    Viertel des Simulationshorizonts, 'Q2-Q3-peak' die mittlere Haelfte
+    (z. B. Sommer-/Grillsaison bei Getraenke-Zulieferern)."""
+    quarter = max(1, weeks // 4)
+    if seasonality == "Q4-peak" and week >= weeks - quarter:
+        return 1.5
+    if seasonality == "Q2-Q3-peak" and quarter <= week < weeks - quarter:
+        return 1.5
+    return 1.0
+
+
+def pick_customer(customers, rng, faker):
+    """Waehlt einen Kunden gewichtet nach revenue_share aus dem Profil.
+    Eintraege mit is_pool: true stehen fuer mehrere kleinere Kunden in Summe
+    (z. B. "lokale Brauereien") -> dafuer wird pro Auftrag ein individueller
+    Firmenname erzeugt statt woertlich den Sammelposten-Namen zu verwenden."""
+    weights = [c.get("revenue_share", 1.0) for c in customers]
+    customer = rng.choices(customers, weights=weights, k=1)[0]
+    if customer.get("is_pool"):
+        return faker.company()
+    return customer["name"]
+
+
 def generate_orders(profile, products, start_date, weeks, rng, faker):
     demand = profile["demand"]
     orders_per_week = demand["orders_per_week"]
     rush_share = demand.get("rush_order_share", 0.0)
     due_date_sampler = parse_due_date_distribution(demand["due_date_distribution"])
     seasonality = demand.get("seasonality")
+    customers = profile.get("customers", [])
 
     rows = []
     order_counter = 1
     for week in range(weeks):
-        week_orders = orders_per_week
-        # Einfache Saisonalitaet: letztes Viertel des Simulationshorizonts
-        # staerker gewichten, falls im Profil "Q4-peak" angegeben ist.
-        if seasonality == "Q4-peak" and week >= weeks - max(1, weeks // 4):
-            week_orders = int(orders_per_week * 1.5)
+        week_orders = int(orders_per_week * seasonal_multiplier(seasonality, week, weeks))
 
         for _ in range(week_orders):
             product = rng.choice(products)
@@ -130,9 +151,10 @@ def generate_orders(profile, products, start_date, weeks, rng, faker):
             is_rush = rng.random() < rush_share
             order_id = f"O-{order_counter:05d}"
             order_counter += 1
+            customer_name = pick_customer(customers, rng, faker) if customers else faker.company()
             rows.append({
                 "order_id": order_id,
-                "customer": faker.company(),
+                "customer": customer_name,
                 "product_id": product["id"],
                 "variant": f"{product['id']}-V{variant_idx}",
                 "order_date": order_date.isoformat(),

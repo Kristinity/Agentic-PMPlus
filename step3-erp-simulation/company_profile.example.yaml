@@ -6,63 +6,151 @@
 # unten kommentiert mit: wofür er gebraucht wird und welche CSV-Tabelle(n)
 # daraus entstehen.
 #
+# Beispielunternehmen: Krasser Spass (K.S.) GmbH, gegruendet 1977 in Luebeck,
+# Hersteller von Kronkorken und Drehverschluessen fuer alkoholische
+# Spassgetraenke. Hauptabnehmer ist die Becksbrauerei (Hamburg), daneben
+# beliefert K.S. kleinere lokale Brauereien.
+#
 # Kopiere diese Datei z. B. nach company_profile.yaml und passe sie pro
 # simuliertem Unternehmen an.
 
 company:
-  name: "Musterfabrik GmbH"
-  industry: "Automobilzulieferer"        # beeinflusst Produktkomplexität/Variantenvielfalt
-  fertigungsart: "make-to-order"         # make-to-stock | make-to-order | hybrid
-  layout: "werkstattfertigung"           # werkstattfertigung (job shop) | fliessfertigung (flow shop)
+  name: "Krasser Spass (K.S.) GmbH"
+  founded: 1977                          # nur beschreibend, von main.py nicht ausgewertet
+  location: "Luebeck"                    # nur beschreibend, von main.py nicht ausgewertet
+  industry: "Verpackung / Getraenke-Verschluesse (Kronkorken & Drehverschluesse)"
+  fertigungsart: "make-to-stock"         # Massenfertigung standardisierter Verschluesse
+  layout: "fliessfertigung"              # fliessfertigung (flow shop) | werkstattfertigung (job shop)
 
 # Steuert Umfang/Reproduzierbarkeit der generierten Daten (main.py)
 simulation:
   weeks: 12                              # Simulationshorizont in Wochen
   random_seed: 42                        # fuer reproduzierbare Laeufe
 
+# main.py waehlt pro Auftrag einen Kunden gewichtet nach revenue_share aus
+# (siehe pick_customer()). Eintraege mit is_pool: true stehen fuer mehrere
+# kleinere Kunden in Summe -> dafuer wird pro Auftrag ein individueller,
+# per Faker erzeugter Firmenname verwendet statt woertlich "Sammelposten".
+customers:
+  - name: "Becksbrauerei"
+    region: "Hamburg"
+    revenue_share: 0.72                  # Anteil am Gesamtumsatz von K.S.
+    demand_coverage_share: 0.20          # K.S. deckt ca. 20% von Becks' Gesamtbedarf
+    is_pool: false
+  - name: "Lokale Brauereien (Sammelposten)"
+    region: "diverse, norddeutscher Raum"
+    revenue_share: 0.28
+    is_pool: true
+
 # -> orders.csv, bom.csv, routings.csv
 products:
-  - id: "P-001"
-    name: "Getriebegehäuse"
-    variants: 3                          # Anzahl Produktvarianten (Variantenvielfalt)
+  - id: "P-KK"
+    name: "Kronkorken 26mm Standard"
+    variants: 4                          # z. B. Lack-/Druckvarianten je Kundenmarke
     bom:                                 # Stückliste -> bom.csv
-      - component: "Rohgussteil"
+      - component: "Weissblech-Coil"
         quantity: 1
-        lead_time_days: 5                # Lieferzeit des Zulieferteils (Engpassquelle)
-      - component: "Lagerbuchse"
-        quantity: 2
-        lead_time_days: 2
+        lead_time_days: 10               # Stahl-/Weissblech-Beschaffung (Engpassquelle)
+      - component: "Dichtungscompound (PVC-frei)"
+        quantity: 1
+        lead_time_days: 7
+      - component: "Druckfarbe/Lack"
+        quantity: 1
+        lead_time_days: 5
     routing:                             # Arbeitsplan -> routings.csv
-      - operation: "Fraesen"
-        work_center: "WC-Fraese-01"
-        duration_minutes: 45
-        setup_minutes: 20
-      - operation: "Bohren"
-        work_center: "WC-Bohr-02"
-        duration_minutes: 15
+      - operation: "Stanzen"
+        work_center: "WC-Stanze-01"
+        duration_minutes: 2
+        setup_minutes: 15
+      - operation: "Formen"                # Kronen-Crimpen: eigenes Werkzeug/eigene Presse
+        work_center: "WC-Presse-KK-02"
+        duration_minutes: 2
         setup_minutes: 10
+      - operation: "Bedrucken"
+        work_center: "WC-Druck-03"
+        duration_minutes: 3
+        setup_minutes: 20
+      - operation: "Dichtungseinlage einbringen"
+        work_center: "WC-Dichtung-04"
+        duration_minutes: 1
+        setup_minutes: 5
+
+  - id: "P-DV"
+    name: "Drehverschluss 28mm Twist-off"
+    variants: 3
+    bom:
+      - component: "Weissblech-Coil"
+        quantity: 1
+        lead_time_days: 10
+      - component: "Dichtungscompound (PVC-frei)"
+        quantity: 1
+        lead_time_days: 7
+      - component: "Druckfarbe/Lack"
+        quantity: 1
+        lead_time_days: 5
+    routing:
+      - operation: "Stanzen"
+        work_center: "WC-Stanze-01"
+        duration_minutes: 2
+        setup_minutes: 15
+      - operation: "Gewindeformen"         # Gewinde/Lugs formen: mechanisch anderer Prozess
+        work_center: "WC-Presse-DV-05"     # als Kronen-Crimpen -> eigene Presse statt Tauschwerkzeug
+        duration_minutes: 3
+        setup_minutes: 12
+      - operation: "Bedrucken"
+        work_center: "WC-Druck-03"
+        duration_minutes: 3
+        setup_minutes: 20
+      - operation: "Dichtungseinlage einbringen"
+        work_center: "WC-Dichtung-04"
+        duration_minutes: 1
+        setup_minutes: 5
 
 # -> work_centers.csv, calendar.csv
+#
+# Maschinenanzahl per Fermi-Schaetzung hergeleitet: Becks (2,5 Mio. hl/Jahr
+# in DE, Wikipedia) x ~60% Flaschenanteil x 20% K.S.-Deckungsanteil, durch
+# 72% Umsatzanteil Becks am Gesamtoutput von K.S. hochgerechnet -> ca.
+# 83 Mio. Stueck/Jahr Gesamtoutput. Bei realer Linien-Geschwindigkeit von
+# 1.200-6.000 Stueck/Minute (SACMI/Pelliconi) braucht das nur eine Handvoll
+# Hochgeschwindigkeitslinien, nicht viele -> 5 Maschinen: Stanzen und
+# Bedrucken/Dichtung sind fuer beide Produkte gemeinsam nutzbar (Tauschwerkzeug
+# via setup_minutes), das Formen ist je Produkt eine eigene Presse, da
+# Kronen-Crimpen (P-KK) und Gewindeformen (P-DV) mechanisch verschiedene
+# Prozesse sind und nicht per einfachem Werkzeugwechsel auf derselben Presse
+# laufen.
 resources:
   work_centers:
-    - id: "WC-Fraese-01"
+    - id: "WC-Stanze-01"
+      capacity_hours_per_shift: 8
+      shifts_per_day: 3                  # Massenfertigung, hohe Auslastung/3-Schicht
+      availability_pct: 0.92
+    - id: "WC-Presse-KK-02"               # Kronen-Crimpen (nur P-KK)
+      capacity_hours_per_shift: 8
+      shifts_per_day: 3
+      availability_pct: 0.90
+    - id: "WC-Presse-DV-05"               # Gewindeformen (nur P-DV, geringeres Volumen)
       capacity_hours_per_shift: 8
       shifts_per_day: 2
-      availability_pct: 0.9             # Puffer fuer Ruesten/Kleinstoerungen
-    - id: "WC-Bohr-02"
+      availability_pct: 0.88
+    - id: "WC-Druck-03"
       capacity_hours_per_shift: 8
-      shifts_per_day: 1
-      availability_pct: 0.85
+      shifts_per_day: 2
+      availability_pct: 0.88
+    - id: "WC-Dichtung-04"
+      capacity_hours_per_shift: 8
+      shifts_per_day: 2
+      availability_pct: 0.90
   calendar:
     working_days: ["Mo", "Di", "Mi", "Do", "Fr"]
     holidays: ["2026-12-25", "2026-01-01"]
 
 # -> orders.csv (Auftragsvolumen, Termine, Prioritaeten)
 demand:
-  orders_per_week: 40
-  seasonality: "Q4-peak"                # z. B. saisonale Nachfragespitzen
-  rush_order_share: 0.15                # Anteil Eilauftraege an allen Auftraegen
-  due_date_distribution: "uniform(3,14)"  # Tage zwischen Auftragseingang und Liefertermin
+  orders_per_week: 60                    # viele Kleinauftraege typisch fuer Verpackungszulieferer
+  seasonality: "Q2-Q3-peak"              # Sommer-/Grillsaison = hoeherer Bierabsatz -> mehr Nachfrage
+  rush_order_share: 0.08
+  due_date_distribution: "uniform(5,21)"  # Tage zwischen Auftragseingang und Liefertermin
 
 # Zentrale Konfliktquellen: ohne diese gibt es später (Step 5/7) keine
 # sinnvollen Paarvergleiche zwischen Planungsalternativen, an denen ein PGP
@@ -70,23 +158,23 @@ demand:
 # eigenes disruptions.csv
 disruptions:
   - type: "machine_breakdown"
-    work_center: "WC-Fraese-01"
-    probability_per_week: 0.10
-    downtime_hours: [2, 8]              # [min, max]
+    work_center: "WC-Stanze-01"
+    probability_per_week: 0.08
+    downtime_hours: [1, 6]               # [min, max]
   - type: "material_shortage"
-    component: "Rohgussteil"
-    probability_per_week: 0.05
-    delay_days: [1, 5]                  # [min, max]
+    component: "Weissblech-Coil"
+    probability_per_week: 0.06
+    delay_days: [2, 10]                  # [min, max] - Stahl-/Weissblech-Lieferketten sind volatil
   - type: "priority_change"
-    probability_per_order: 0.10         # nachtraeglich geaenderte Prioritaet/Termin
+    probability_per_order: 0.12          # Grosskunde Becks priorisiert kurzfristig um
 
 # Zielgroessen, gegen die Planungsalternativen später bewertet werden
 # (Massstab fuer Preference-Urteile in Step 5) -> kpi_targets.csv oder
 # Metadaten-Header in orders.csv
 kpis:
-  on_time_delivery_target_pct: 95
-  utilization_target_pct: 85
-  cost_per_order_eur: 120
+  on_time_delivery_target_pct: 98        # Grosskunde Becks erwartet hohe Liefertreue
+  utilization_target_pct: 90
+  cost_per_order_eur: 45
 
 # Welche CSV-Tabellen main.py aus diesem Profil erzeugen soll
 output:
