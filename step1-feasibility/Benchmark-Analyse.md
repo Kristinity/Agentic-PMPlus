@@ -14,7 +14,8 @@ Google Scholar / OpenAlex / arXiv / Verlagsdatenbanken so ausgewählt, dass sie 
 **Einzelbausteine** des Konzepts abdecken:
 
 - Preference-Learning mit Gaussian Processes (PGP-Grundlagen) – #1, #2
-- Aktives Preference-Learning / Preferential Bayesian Optimization (Active Loop + GP) – #3, #4
+- Aktives Preference-Learning / Preferential Bayesian Optimization (Active Loop + GP) – #3, #4, #16
+- Gaussian-Process-Active-Learning direkt LLM-gesteuert (GP + Active Loop + LLM in einem System) – #17
 - Preference-/RLHF-Learning mit LLMs – #6, #7, #8
 - Active-Learning-Loops mit LLMs im Human-in-the-Loop-Setting – #9, #10
 - Unsicherheitskalibrierung / Risk-Coverage bei LLMs – #11, #12
@@ -216,18 +217,54 @@ OpenReview bzw. NeurIPS-Proceedings verifiziert.
   Arnold Network (KAN) as the policy network for improved feature representation.
   Experiments show substantial gains in learning performance and convergence efficiency.
 
+## 16. Active preference-based Gaussian process regression for reward learning and optimization
+
+- **Jahr:** 2024
+- **Autor(en):** Erdem Bıyık, Nicolas Huynh, Mykel J. Kochenderfer, Dorsa Sadigh
+- **DOI-Link:** https://doi.org/10.1177/02783649231208729 (The International Journal of Robotics Research)
+- **Abstract:** Designing reward functions is a longstanding challenge in AI and robotics.
+  The authors present a preference-based learning approach in which human feedback takes
+  the form of comparisons between trajectories, modeling the reward function with a
+  Gaussian process instead of assuming a linear structure, and actively fitting this model
+  using only preference comparisons. The paper addresses both the inflexibility of linear
+  reward models and the data-inefficiency of naive active-learning approaches, presenting
+  a reward-learning variant and a reward-optimization variant (for when only the optimal
+  trajectory matters, not the full reward landscape). Simulation experiments and robot
+  user studies show the method outperforms linear-model and random-querying baselines in
+  both reward learning and reward optimization.
+
+## 17. Bayesian Active Learning with Gaussian Processes Guided by LLM Relevance Scoring for Dense Passage Retrieval
+
+- **Jahr:** 2026
+- **Autor(en):** Junyoung Kim, Anton Korikov, Jiazhou Liang, Justin Cui, Yifan Simon Liu, Qianfeng Wen, Mark Zhao, Scott Sanner
+- **DOI-Link:** https://doi.org/10.48550/arXiv.2604.17906
+- **Abstract:** While LLMs exhibit exceptional zero-shot relevance modeling, their high
+  computational cost necessitates framing passage retrieval as a budget-constrained global
+  optimization problem. Existing approaches passively rely on first-stage dense
+  retrievers, which fail to retrieve relevant passages in semantically distinct clusters
+  and fail to propagate relevance signals to the broader corpus. The authors propose BAGEL
+  (Bayesian Active Learning with Gaussian Processes guided by LLM relevance scoring), which
+  propagates sparse LLM relevance signals across the embedding space via a query-specific
+  Gaussian Process to guide global exploration, iteratively selecting passages for scoring
+  by balancing exploitation of high-confidence regions against exploration of uncertain
+  areas. Across four benchmark datasets and two LLM backbones, BAGEL outperforms LLM
+  reranking methods under the same LLM budget.
+
 ---
 
 ## Einordnung zum Agentic-PMPlus-Konzept
 
 Am nächsten am eigenen Konzept (LLM-Agent + PGP + Kalibrierung + Active Loop, konkret
 in der PPS) liegen **#13** und **#14** (May et al.), die bereits LLM-Agenten direkt in
-Produktionssteuerung/-planung und Job-Shop-Scheduling einsetzen, sowie **#3/#4**
-(Bemporad & Piga; Ozaki et al.), die den methodischen Kern eines *aktiven*
-Preference-Learning-Loops mit Gaussian-Process-Surrogat liefern — genau die Kombination,
-die Step 5 (PGP) und Step 7 (Active Learning Loop) im eigenen Konzept vorsehen. Keine der
-gefundenen Quellen kombiniert jedoch alle vier Bausteine (LLM-Agent + PGP + τ/σ-Kalibrierung
-+ Active Loop) gleichzeitig in der PPS — das eigene Konzept adressiert damit eine bislang
-in der Literatur nicht geschlossene Kombination und erscheint auf Basis dieser
-Benchmark-Analyse **machbar, aber als neuartige Kombination bestehender Bausteine**
-einzuordnen.
+Produktionssteuerung/-planung und Job-Shop-Scheduling einsetzen, sowie **#3/#4/#16**
+(Bemporad & Piga; Ozaki et al.; Bıyık et al.), die den methodischen Kern eines *aktiven*
+Preference-/Reward-Learning-Loops mit Gaussian-Process-Surrogat liefern — genau die
+Kombination, die Step 5 (PGP) und Step 7 (Active Learning Loop) im eigenen Konzept
+vorsehen. **#17** (Kim et al., BAGEL) kombiniert methodisch am direktesten alle drei
+technischen Kernbausteine PGP + Active Loop + LLM-Steuerung in einem einzigen System —
+allerdings für Dense Passage Retrieval, nicht für die PPS, und ohne
+τ/σ-Kalibrierungsschicht. Keine der gefundenen Quellen kombiniert alle vier Bausteine
+(LLM-Agent + PGP + τ/σ-Kalibrierung + Active Loop) gleichzeitig in der PPS — das eigene
+Konzept adressiert damit eine bislang in der Literatur nicht geschlossene Kombination und
+erscheint auf Basis dieser Benchmark-Analyse **machbar, aber als neuartige Kombination
+bestehender Bausteine** einzuordnen.

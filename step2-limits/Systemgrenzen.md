@@ -1,9 +1,10 @@
 # Systemgrenzen des Agentic-PMPlus-Konzepts
 
 **Stand:** 2026-07-26
-**Erstellt von:** Search-Buddy (Recherche-Agent, `.claude/agents/role/search-buddy.md`)
+**Erstellt von:** Search-Buddy (Teil A/B), Security-Buddy (Teil C) und Safety-Buddy (Teil D)
+— `.claude/agents/role/{search,security,safety}-buddy.md`
 **Grundlage:** `README.md` (Gesamtkonzept), `step1-feasibility/Benchmark-Analyse.md`
-(15 verifizierte Quellen, referenziert als **#1–#15**) und
+(17 verifizierte Quellen, referenziert als **#1–#17**) und
 `step1-feasibility/Instructions.md` (Umsetzungsanleitung mit offenen Fragen pro Step)
 
 Dieses Dokument beantwortet für Step 2 ("Grenzen technisch/ökonomisch") die Frage: **Wo
@@ -130,11 +131,130 @@ organisatorische Grenze, die vor einem Produktivbetrieb geklärt sein sollte.
 
 ---
 
+## Teil C – Sicherheitsbezogene Systemgrenzen (Security-Buddy)
+
+### C.1 Technisch
+
+**Keine Quelle deckt Schutz gegen manipulierte Wissensquellen ab.** **#5** (RAG in Smart
+Manufacturing) misst Retrieval-Genauigkeit, prüft aber nicht, ob das System gegen absichtlich
+präparierte Dokumente (Prompt Injection über den RAG-Kontext in Step 4) robust ist. Für den
+im Konzept vorgesehenen Aufbau gibt es damit keine belegte Verteidigung gegen Dokumente, die
+den LLM-Agenten zu ungewolltem Verhalten verleiten.
+
+**#17** (Kim et al., BAGEL) zeigt zusätzlich eine strukturelle Verstärkungsgefahr: Das
+GP-Surrogat propagiert dort bewusst *sparse* LLM-Relevanzsignale über den gesamten
+Embedding-Raum, um mit wenigen Bewertungen eine globale Explorationsstrategie zu steuern.
+Überträgt man dieses Prinzip auf Step 5/7 (PGP + Active Learning Loop), folgt daraus eine
+Systemgrenze, die in keiner der 17 Quellen adressiert wird: **ein einzelnes manipuliertes
+Preference- oder Relevanz-Urteil wirkt nicht nur auf eine Entscheidung, sondern verzerrt über
+das GP-Surrogat potenziell viele nachgelagerte Planungsentscheidungen zugleich** — die
+Verteidigung gegen Data Poisoning an der Feedback-Quelle ist damit kritischer als in einem
+System ohne globale Signal-Propagierung.
+
+**Secrets- und Modell-Artefakt-Handling ohne Forschungsbezug.** Weder das sichere Ablegen von
+`ANTHROPIC_API_KEY` (`.env`, `.gitignore`) noch die sichere (De-)Serialisierung von
+PGP-Modell-Artefakten in `shared/models/` (Step 5) werden von einer der 17 Quellen
+behandelt — das sind reine Software-Engineering-/DevOps-Fragen, die durch Standardpraxis
+(Secret-Management, keine unsichere Deserialisierung fremder Dateien, minimal-privilegierte
+Docker-Container) abgedeckt werden müssen, nicht durch die zugrunde liegende Forschung.
+
+### C.2 Managementebene
+
+**1. Die Wissensquelle des Systems ist bisher nicht auf Manipulationssicherheit geprüft.**
+Die Forschung, auf der Step 4 (Kontext-Suche) beruht, zeigt nur, dass das System bei
+sauberen Daten gute Antworten liefert — nicht, dass es unempfindlich gegen absichtlich
+falsch platzierte Informationen ist. Bis das geprüft ist, sollten Wissensquellen, mit denen
+das System arbeitet, kuratiert und nicht frei von außen erweiterbar sein.
+
+**2. Ein einzelnes falsches Signal kann sich weiterverbreiten.**
+Weil das System Rückmeldungen nutzt, um viele ähnliche Entscheidungen auf einmal
+anzupassen (das ist gerade seine Stärke), gilt das auch für falsche oder manipulierte
+Rückmeldungen: Ein einziger Fehler kann größere Wirkung haben als in einem System, das
+jede Entscheidung einzeln und unabhängig trifft. Das erhöht den Wert einer sorgfältigen
+Prüfung, wer Feedback geben darf.
+
+**3. Zugangsdaten- und Modell-Sicherheit sind Standard-IT-Hygiene, keine offene
+Forschungsfrage.** Das lässt sich mit etablierten Sicherheitsprozessen lösen und muss nicht
+auf eine wissenschaftliche Grundlage warten.
+
+---
+
+## Teil D – Entscheidungssicherheits-Systemgrenzen (Safety-Buddy)
+
+### D.1 Technisch
+
+**Exploration wurde bisher nur in folgenlosen Kontexten getestet.** **#3, #4, #16** und
+**#17** — alle Quellen, die dem Konzept die Logik für den Active Learning Loop liefern —
+werten ihre aktive Explorations-/Exploitations-Strategie an generischen Optimierungs-
+Benchmarks, Hyperparameter-Tuning, Robotik-Simulationen bzw. Passage-Retrieval aus. In
+all diesen Kontexten kostet das "Ausprobieren" einer unsicheren Option nichts Reales. Für
+Step 7/8 in der PPS bedeutet dieselbe Explorationslogik im Zweifel eine tatsächlich
+durchgeführte Produktionsentscheidung mit realen, teils irreversiblen Folgen. **Keine der
+17 Quellen validiert, dass sich eine für folgenlose Kontexte entwickelte
+Explorationsstrategie sicher auf einen Kontext mit realen Konsequenzen übertragen lässt** —
+das ist eine eigenständige Systemgrenze, nicht nur die bereits in Teil A.4 genannte
+Aufgaben-Verschiedenheit.
+
+**Kein belegter Fail-safe-Default bei Kalibrierungsversagen.** **#11** und **#12**
+optimieren den Coverage-Risiko-Trade-off im statistischen Mittel über einen Datensatz,
+treffen aber keine Aussage darüber, was im Einzelfall passieren soll, wenn die
+Kalibrierung selbst unsicher oder falsch ist. Ob Step 6 im Zweifel automatisiert
+entscheidet (fail-open) oder eskaliert (fail-safe), ist folglich eine Projektentscheidung,
+keine aus der Literatur ableitbare.
+
+**Keine Provenienz-Unterscheidung Mensch- vs. Agent-Feedback.** **#8** (Pref-GUIDE) zeigt
+Mechanismen zur Aggregation von Preference-Feedback mehrerer Nutzer, adressiert aber nicht,
+wie im Audit-Trail unterschieden wird, ob ein Preference-Urteil von einem Menschen oder
+vom LLM-Agenten selbst (als Proxy, siehe Instructions.md Step 5) stammt. Ohne diese
+Unterscheidung kann sich das System unbemerkt an seinen eigenen früheren Ausgaben
+"bestätigen", statt an echtem menschlichem Feedback zu lernen.
+
+**Keine Governance-Vorlage selbst in den nächstliegenden PPS-Quellen.** Auch **#13**,
+**#14** und **#15** — die einschlägigsten Quellen für LLM-Agenten in Produktionssteuerung/
+-planung — adressieren nicht, wer im Unternehmen für eine automatisierte Entscheidung
+verantwortlich zeichnet. Die in Teil B.6 benannte Governance-Frage bleibt damit auch nach
+Einbeziehung der nächstverwandten Literatur ungeklärt.
+
+### D.2 Managementebene
+
+**1. Das System darf anfangs nicht selbst "ausprobieren dürfen".**
+Die eingebaute Lernstrategie funktioniert, indem das System gezielt unsichere Optionen
+testet. Bisher wurde das nur dort erprobt, wo ein Fehlversuch nichts kostet. In der
+Produktionsplanung könnte ein "Versuch" eine echte, teure oder schwer rückgängig zu
+machende Entscheidung sein. Deshalb: In der Einführungsphase muss jeder "Testfall" vorher
+von einem Menschen freigegeben werden.
+
+**2. Im Zweifel entscheidet ein Mensch — nicht das System.**
+Es gibt aktuell keinen belegten Standardfall dafür, was passieren soll, wenn das System
+nicht einmal sicher weiß, wie sicher es sich ist. Diese Regel muss das Projekt selbst
+festlegen, mit klarer Vorgabe: im Zweifel wird eskaliert, nie automatisch entschieden.
+
+**3. Es muss immer erkennbar sein, ob eine Empfehlung von einem Menschen oder vom
+System selbst stammt**, damit sich das System nicht unbemerkt an seinen eigenen früheren
+Vorschlägen bestätigt, statt echtes menschliches Feedback zu lernen.
+
+**4. Wer verantwortlich ist, wenn eine automatisierte Entscheidung falsch war, klärt keine
+der zugrunde liegenden Studien** — auch nicht die, die dem eigenen Anwendungsfall am
+nächsten kommen. Diese Verantwortlichkeit muss vor einem Produktivbetrieb intern
+festgelegt werden, unabhängig vom technischen Fortschritt des Systems.
+
+---
+
 ## Fazit
 
 Die technischen Systemgrenzen (Teil A) markieren durchgehend **Übertragungslücken**: Jeder
 Baustein ist einzeln durch mindestens eine Quelle gestützt, aber die Übertragung auf den
 PPS-Kontext bzw. die Kombination der Bausteine ist an jeder Nahtstelle unbelegte Annahme.
-Auf Managementebene (Teil B) übersetzt sich das in eine klare Empfehlung: **Pilotierung mit
-engem Feedback-Loop statt Vollausrollung**, mit expliziter vorheriger Klärung von
-Verantwortlichkeiten bei automatisierten Entscheidungen.
+Security-Buddy (Teil C) ergänzt, dass insbesondere der Schutz der Wissens- und
+Feedback-Quellen gegen Manipulation ungeprüft ist — mit potenziell größerer Reichweite
+einzelner Fehler, weil das System Signale gezielt über viele Entscheidungen propagiert.
+Safety-Buddy (Teil D) ergänzt, dass die eingebaute Explorationslogik des Active Learning
+Loops bislang nur in folgenlosen Forschungskontexten erprobt wurde und kein belegter
+Fail-safe-Default für Kalibrierungsversagen existiert.
+
+Auf Managementebene (Teile B–D) übersetzt sich das durchgehend in dieselbe Empfehlung:
+**Pilotierung mit engem Feedback-Loop statt Vollausrollung**, mit expliziter vorheriger
+Klärung von Verantwortlichkeiten bei automatisierten Entscheidungen, kuratierten statt
+frei erweiterbaren Wissensquellen, und einem strikten Fail-safe-Default (im Zweifel wird
+eskaliert, nie automatisiert), solange keine der drei Perspektiven (technisch, Security,
+Safety) Gegenteiliges belegt.
