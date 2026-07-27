@@ -20,6 +20,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from propagation import propagate
 from rag_metadata import load_rag_metadata, resolve_matched_docs
 from store import insert_entscheidung, list_entscheidungen
 
@@ -104,11 +105,35 @@ def post_entscheidung(request: EntscheidungRequest):
         begruendung=request.begruendung,
         entschieden_von="mensch",
     )
+
+    # TICKET-B08: auf aehnliche, noch nicht entschiedene Faelle propagieren - gedrosselt
+    # durch eine harte Obergrenze N (Systemgrenzen.md Teil D.1, nicht optional). Faelle
+    # ueber N bleiben bewusst unangetastet eskaliert statt automatisch uebernommen zu
+    # werden.
+    orders_df = pd.read_csv(TAU_VERGLEICH_PATH)
+    already_decided_ids = {e["order_id"] for e in list_entscheidungen()}
+    propagierte_faelle, _uebersprungen = propagate(
+        order_id=request.order_id,
+        orders_df=orders_df,
+        already_decided_ids=already_decided_ids,
+    )
+    for propagierter_order_id in propagierte_faelle:
+        insert_entscheidung(
+            order_id=propagierter_order_id,
+            wahl=request.wahl,
+            eigene_reihenfolge=None,
+            begruendung=(
+                f"Automatisch propagiert von Entscheidung {decision_id} "
+                f"(Auftrag {request.order_id}) - Aehnlichkeitsheuristik: gleiches "
+                "product_id + naechster PGP-mu, siehe propagation.py."
+            ),
+            entschieden_von="agent",
+        )
+
     return {
         "decision_id": decision_id,
         "zeitstempel": zeitstempel,
-        # Platzhalter bis TICKET-B08 (Propagation) existiert - Architektur-Doc Abschnitt 2.5.
-        "propagierte_faelle": [],
+        "propagierte_faelle": propagierte_faelle,
     }
 
 
