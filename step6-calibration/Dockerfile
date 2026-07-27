@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt --break-system-packages || pi
 
 COPY . .
 
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "python main.py && python kalibrierung.py"]
