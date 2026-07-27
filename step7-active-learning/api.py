@@ -21,7 +21,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from rag_metadata import load_rag_metadata, resolve_matched_docs
-from store import insert_entscheidung
+from store import insert_entscheidung, list_entscheidungen
 
 TAU_VERGLEICH_PATH = os.environ.get(
     "TAU_VERGLEICH_PATH", os.path.join("shared_data", "tau_vergleich.csv")
@@ -110,3 +110,16 @@ def post_entscheidung(request: EntscheidungRequest):
         # Platzhalter bis TICKET-B08 (Propagation) existiert - Architektur-Doc Abschnitt 2.5.
         "propagierte_faelle": [],
     }
+
+
+@app.get("/verlauf")
+def get_verlauf(
+    order_id: Optional[str] = None,
+    ab: Optional[str] = None,
+    bis: Optional[str] = None,
+):
+    """TICKET-B06. Audit-Trail: chronologische Liste aller ueber POST /entscheidung
+    erfassten Entscheidungen, optional gefiltert nach order_id und/oder Zeitraum (ab/bis
+    als ISO-8601-Zeitstempel, siehe store.list_entscheidungen). entschieden_von macht die
+    Mensch-/Agent-Provenienz pro Eintrag erkennbar (Systemgrenzen.md Teil B.6)."""
+    return list_entscheidungen(order_id=order_id, ab=ab, bis=bis)
