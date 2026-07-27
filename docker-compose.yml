@@ -94,6 +94,9 @@ services:
       # auf (TICKET-B03) - liest dieselben kuratierten Dokumente wie step5-pgp direkt,
       # kein neuer Export-Mechanismus in Step 4 noetig.
       - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
+      # SQLite-Persistenz der Entscheidungshistorie (TICKET-B02) - eigener Ordner, damit
+      # sie klar von den reinen Batch-CSV-Inputs der Steps 3-6 getrennt bleibt.
+      - ./shared/feedback:/app/shared_feedback
     networks:
       - pmplus-net
     depends_on:
