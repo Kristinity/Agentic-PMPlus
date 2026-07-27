@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   prestep:
@@ -20,7 +18,8 @@ services:
     networks:
       - pmplus-net
     depends_on:
-      - prestep
+      prestep:
+        condition: service_completed_successfully
 
   step2-limits:
     build: ./step2-limits
@@ -32,17 +31,29 @@ services:
     networks:
       - pmplus-net
     depends_on:
-      - step1-feasibility
+      step1-feasibility:
+        condition: service_completed_successfully
 
   step3-erp-simulation:
     build: ./step3-erp-simulation
     container_name: pmplus-step3
+    environment:
+      # Pinnt den ERP-Simulationszeitraum auf das Jahr, gegen das der gesamte
+      # restliche Prototyp getestet wurde (entspricht dem committeten
+      # step3-erp-simulation/output_2025/). company_profile.example.yaml setzt
+      # random_seed:42 fest -> mit denselben START_DATE/WEEKS ist der Lauf
+      # deterministisch reproduzierbar, kein Zufall zwischen zwei "docker
+      # compose up"-Durchlaeufen. Ueberschreibbar in .env, falls ein anderer
+      # Zeitraum simuliert werden soll.
+      - START_DATE=${START_DATE:-2025-01-01}
+      - WEEKS=${WEEKS:-53}
     volumes:
       - ./shared/data:/app/shared_data
     networks:
       - pmplus-net
     depends_on:
-      - step2-limits
+      step2-limits:
+        condition: service_completed_successfully
 
   step4-context-engineering:
     build: ./step4-context-engineering
@@ -54,13 +65,20 @@ services:
     networks:
       - pmplus-net
     depends_on:
-      - step3-erp-simulation
+      step3-erp-simulation:
+        condition: service_completed_successfully
 
   step5-pgp:
     build: ./step5-pgp
     env_file:
       - .env
     container_name: pmplus-step5
+    environment:
+      # Fixer Stichtag statt date.today() -> reproduzierbare mu/sigma gegen
+      # das simulierte Jahr 2025 (siehe Kommentar bei step3 oben). Ohne diesen
+      # Fixpunkt liegt AS_OF_DATE nach jedem Neustart in der Zukunft der
+      # simulierten Auftraege und "offene Auftraege" waere leer/willkuerlich.
+      - AS_OF_DATE=${AS_OF_DATE:-2026-01-01}
     volumes:
       - ./shared/data:/app/shared_data
       # PGP braucht volle Einsicht ins Context Engineering (siehe Konzept-README.md) ->
@@ -69,17 +87,31 @@ services:
     networks:
       - pmplus-net
     depends_on:
-      - step4-context-engineering
+      step4-context-engineering:
+        condition: service_completed_successfully
 
   step6-calibration:
     build: ./step6-calibration
+    env_file:
+      # Fehlte bisher komplett -> ANTHROPIC_API_KEY kam nie im Container an,
+      # ein echter (nicht-Mock) LLM-Aufruf war ueber "docker compose up" gar
+      # nicht moeglich. Siehe auch MOCK_LLM_RESPONSE unten.
+      - .env
     container_name: pmplus-step6
+    environment:
+      # Default=1 (Mock-Modus): "docker compose up" funktioniert ohne
+      # ANTHROPIC_API_KEY/Guthaben sofort. Fuer eine echte, unabhaengige
+      # LLM-Einschaetzung (und damit ein aussagekraeftiges tau) in .env
+      # MOCK_LLM_RESPONSE=0 setzen und einen funktionierenden Key eintragen -
+      # siehe RUNBOOK.md.
+      - MOCK_LLM_RESPONSE=${MOCK_LLM_RESPONSE:-1}
     volumes:
       - ./shared/data:/app/shared_data
     networks:
       - pmplus-net
     depends_on:
-      - step5-pgp
+      step5-pgp:
+        condition: service_completed_successfully
 
   step7-active-learning:
     build: ./step7-active-learning
@@ -96,7 +128,25 @@ services:
     networks:
       - pmplus-net
     depends_on:
-      - step6-calibration
+      step6-calibration:
+        condition: service_completed_successfully
+
+  frontend:
+    # Statisches HTML/JS/CSS (step7-active-learning/frontend/), kein Build-Step
+    # noetig (siehe frontend/README.md Stack-Begruendung) -> reicht ein
+    # Standard-nginx als reiner Dateiserver statt eines eigenen Dockerfiles.
+    # Vorher wurde das ausschliesslich manuell per "python3 -m http.server"
+    # ausserhalb von Docker ausgeliefert - fehlte komplett in dieser Datei.
+    image: nginx:alpine
+    container_name: pmplus-frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./step7-active-learning/frontend:/usr/share/nginx/html:ro
+    networks:
+      - pmplus-net
+    depends_on:
+      - step7-active-learning
 
   step8-live-test:
     build: ./step8-live-test

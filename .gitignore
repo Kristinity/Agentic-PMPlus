@@ -5,3 +5,5 @@ __pycache__/
 .DS_Store
 shared/data/*
 !shared/data/.gitkeep
+shared/feedback/*
+!shared/feedback/.gitkeep
