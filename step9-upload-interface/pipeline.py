@@ -178,21 +178,27 @@ def build_run_dir(runs_root, baseline_dir, new_orders_df=None):
 
 def run_pipeline(run_dir, as_of_date_iso, mock_llm, step5_dir, step6_dir,
                   rag_documents_dir, target_escalation_rate=None,
-                  max_new_orders=None, new_order_ids=None):
+                  new_order_ids=None):
     """Fuehrt step5-pgp und step6-calibration gegen run_dir aus. Gibt ein
     RunResult zurueck - result_df ist None bei einem Fehlschlag, sonst der
     Inhalt von tau_vergleich.csv.
 
-    max_new_orders erhoeht step5s MAX_NEW_ORDERS (Default 20) grosszuegig,
-    damit hochgeladene neue Auftraege nicht durch das "20 am naechsten
-    faellige offene Auftraege"-Limit aus den bestehenden offenen Auftraegen
-    der Baseline verdraengt werden und im Ergebnis fehlen."""
+    new_order_ids werden step5 als PINNED_ORDER_IDS mitgegeben, damit sie
+    IMMER im Ergebnis auftauchen, auch wenn ihr Liefertermin sie aus den
+    "MAX_NEW_ORDERS am naechsten faelligen offenen Auftraegen" (Default 20)
+    herausfallen liesse. Bewusst NICHT ueber ein pauschal erhoehtes
+    MAX_NEW_ORDERS geloest (fruehere Version dieser Funktion) - bei 200
+    offenen Auftraegen im step6-Prompt reisst Claude die 1-Satz-Begruendung
+    pro Auftrag durch max_tokens=8192 ab, bevor ueberhaupt JSON zurueckkommt
+    ("Keine JSON-Antwort gefunden" in step6-calibration/main.py), und die
+    Kalibrierung scheitert komplett. Pinning haelt die Gesamtmenge nahe am
+    urspruenglich fuer step6 kalibrierten Umfang (~20 + wenige neue)."""
     env = os.environ.copy()
     env["ERP_DATA_DIR"] = run_dir
     env["RAG_DOCUMENTS_DIR"] = rag_documents_dir
     env["AS_OF_DATE"] = as_of_date_iso
-    if max_new_orders is not None:
-        env["MAX_NEW_ORDERS"] = str(max_new_orders)
+    if new_order_ids:
+        env["PINNED_ORDER_IDS"] = ",".join(new_order_ids)
 
     step5 = subprocess.run(
         ["python", "main.py"], cwd=step5_dir, env=env,

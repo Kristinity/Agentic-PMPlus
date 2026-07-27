@@ -153,7 +153,6 @@ if run_clicked:
                 step5_dir=STEP5_DIR,
                 step6_dir=STEP6_DIR,
                 rag_documents_dir=RAG_DOCUMENTS_DIR,
-                max_new_orders=200,
                 new_order_ids=new_ids,
             )
 

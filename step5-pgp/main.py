@@ -54,6 +54,13 @@ RAG_DOCUMENTS_DIR = os.environ.get("RAG_DOCUMENTS_DIR", "rag_documents")
 AS_OF_DATE = os.environ.get("AS_OF_DATE")  # ISO-Datum; Default: Median der order_date
 TRAIN_SAMPLE_SIZE = int(os.environ.get("TRAIN_SAMPLE_SIZE", "300"))
 MAX_NEW_ORDERS = int(os.environ.get("MAX_NEW_ORDERS", "20"))
+# Kommagetrennte order_ids, die IMMER in new_sample landen, auch wenn ihr
+# Liefertermin sie aus den "MAX_NEW_ORDERS am naechsten faelligen" heraus-
+# fallen laesst (step9-upload-interface: neu hochgeladene Auftraege duerfen
+# nicht stillschweigend aus dem Ergebnis verschwinden, ohne die LLM-Anfrage
+# in step6 durch eine stark vergroesserte Gesamtmenge zu sprengen - siehe
+# dortigen Kommentar bei PINNED_ORDER_IDS in pipeline.py).
+PINNED_ORDER_IDS = {x.strip() for x in os.environ.get("PINNED_ORDER_IDS", "").split(",") if x.strip()}
 GP_TRAIN_ITERS = int(os.environ.get("GP_TRAIN_ITERS", "80"))
 SEED = int(os.environ.get("SEED", "42"))
 
@@ -363,6 +370,11 @@ def main():
 
     train_sample = history.sample(min(TRAIN_SAMPLE_SIZE, len(history)), random_state=SEED)
     new_sample = open_orders.sort_values("due_date").head(MAX_NEW_ORDERS)
+    if PINNED_ORDER_IDS:
+        pinned = open_orders[open_orders["order_id"].isin(PINNED_ORDER_IDS)]
+        missing_pinned = pinned[~pinned["order_id"].isin(new_sample["order_id"])]
+        if not missing_pinned.empty:
+            new_sample = pd.concat([new_sample, missing_pinned]).sort_values("due_date")
 
     x_train, _ = build_features(train_sample, orders, erp, trusted_docs, as_of)
     y_train = compute_heuristic_utility(x_train)
