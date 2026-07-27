@@ -374,8 +374,15 @@ def main():
 
     model, likelihood = train_gp(x_train, y_train, GP_TRAIN_ITERS)
     mu, sigma = predict(model, likelihood, x_new)
+    # Bootstrap-Utility auch fuer die offenen Auftraege selbst (nicht nur fuer das
+    # Trainingssample) mitausgeben - wird von step6-calibration/main.py als
+    # Platzhalter-Ground-Truth fuer die tau0/sigma0-Kalibrierung verwendet, solange
+    # keine echten Praeferenzurteile aus Step 7 vorliegen (siehe dortiger Modulkopf).
+    bootstrap_utility_new = compute_heuristic_utility(x_new)
 
-    ranking = sorted(zip(mu, sigma, meta_new), key=lambda t: t[0], reverse=True)
+    ranking = sorted(
+        zip(mu, sigma, bootstrap_utility_new, meta_new), key=lambda t: t[0], reverse=True
+    )
 
     os.makedirs(ERP_DATA_DIR, exist_ok=True)
     out_path = os.path.join(ERP_DATA_DIR, "pgp_priorisierung.csv")
@@ -386,12 +393,13 @@ def main():
             "buffer_days": m["buffer_days"], "mu": float(mu_i), "sigma": float(sigma_i),
             "matched_rag_docs": ";".join(m["matched_rag_docs"]),
             "pgp_begruendung": m["begruendung"],
+            "bootstrap_utility": float(util_i),
         }
-        for i, (mu_i, sigma_i, m) in enumerate(ranking)
+        for i, (mu_i, sigma_i, util_i, m) in enumerate(ranking)
     ]).to_csv(out_path, index=False)
 
     print(f"\n--- Priorisierte Auftragsreihenfolge (mu absteigend) -> {out_path} ---")
-    for i, (mu_i, sigma_i, m) in enumerate(ranking, start=1):
+    for i, (mu_i, sigma_i, util_i, m) in enumerate(ranking, start=1):
         docs = f", RAG: {m['matched_rag_docs']}" if m["matched_rag_docs"] else ""
         print(
             f"{i:2d}. {m['order_id']} ({m['customer']}, {m['product_id']}, "

@@ -1,12 +1,29 @@
 """
 step6-calibration - Agentic-PMPlus
 
-Teil 1+2 (siehe Aufgabenstellung): unabhaengige LLM-Rangfolge fuer dieselben
-offenen Auftraege wie der PGP (Step 5) einholen und tau (die Meinungs-
-verschiedenheit zwischen PGP-Rang und LLM-Rang) berechnen. Die eigentliche
-tau0/sigma0-Kalibrierung (Risk-Coverage/Conformal Risk Control) ist bewusst
-noch NICHT Teil dieses Skripts - kommt erst, nachdem dieser Teil gegen echte
-Step-5-Daten getestet ist.
+Teil 1+2: unabhaengige LLM-Rangfolge fuer dieselben offenen Auftraege wie der
+PGP (Step 5) einholen und tau (die Meinungsverschiedenheit zwischen PGP-Rang
+und LLM-Rang) berechnen.
+
+Teil 3 (Bootstrap-Kalibrierung, TICKET-B07): tau0/sigma0-Schwellenwerte per
+risk-coverage-inspirierter Rastersuche herleiten und daraus den ampel_status
+je Auftrag ableiten (siehe calibrate_threshold/compute_ampel_status unten).
+
+BOOTSTRAP-HINWEIS (unbedingt lesen, bevor dieser Teil als "die Kalibrierung"
+missverstanden wird): Fuer eine echte Risk-Coverage-/Conformal-Risk-Control-
+Kalibrierung braucht es einen Validierungsdatensatz mit bekanntem *richtigem*
+Ergebnis - also echte menschliche Praeferenzurteile. Die liegen noch nicht vor
+(die sammelt erst der Active Learning Loop in Step 7). Als Platzhalter wird
+hier dieselbe Bootstrap-Heuristik-Utility verwendet, mit der der PGP selbst in
+step5-pgp/main.py trainiert wurde (Spalte `bootstrap_utility` in
+pgp_priorisierung.csv). Das ist **zirkulaer**: es prueft nur, wie gut der GP
+seine eigene Trainingsheuristik reproduziert, nicht, ob diese Heuristik
+inhaltlich richtig liegt. Zusaetzlich haelt `step2-limits/Systemgrenzen.md`
+Teil A.3 fest, dass die Uebertragung von Risk-Coverage-Prinzipien von
+LLM-Unsicherheit auf GP-Unsicherheit generell **unbelegt** ist - keine der 17
+Quellen der Benchmark-Analyse deckt das. tau0/sigma0 aus diesem Skript sind
+also ein dokumentierter Platzhalter, keine belastbare Kalibrierung fuer einen
+Pilotbetrieb (siehe step8-live-test/Produkt-Backlog/TICKET-B07-Kalibrierung.md).
 
 Architektur-Hinweis: `.claude/agents/role/llm-ranking-agent.md` ist eine
 Claude-Code-Subagent-Definition, die nur innerhalb einer Claude-Code-Session
@@ -48,6 +65,8 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
 OUTPUT_PATH = os.environ.get(
     "OUTPUT_PATH", os.path.join("shared_data", "tau_vergleich.csv")
 )
+# Kalibrierungs-Parameter (Bootstrap-Kalibrierung, s. Modulkopf).
+TARGET_ESCALATION_RATE = float(os.environ.get("TARGET_ESCALATION_RATE", "0.15"))
 
 SYSTEM_PROMPT = """Du bist ein unabhaengiger Produktionsplanungs-Assistent fuer K.S. GmbH \
 (Krasser Spass GmbH, Hersteller von Kronkorken/Drehverschluessen).
@@ -169,6 +188,48 @@ def compute_tau(open_orders, llm_ranking):
     return result, correlation
 
 
+def compute_bootstrap_error(result):
+    """Diagnose-Spalte, NICHT Grundlage der Schwellenwertkalibrierung (siehe
+    calibrate_threshold): error_i = normierte Rangdifferenz zwischen PGP-Rang
+    und der Rangfolge nach `bootstrap_utility` (derselben Heuristik, mit der
+    der PGP in Step 5 trainiert wurde). Ein frueherer Versuch, diese Groesse
+    direkt fuer tau0/sigma0 zu verwenden, erwies sich als Zirkelschluss: der
+    GP reproduziert sein eigenes Trainingssignal fast ueberall gut, wodurch die
+    "Fehler"-Quote praktisch nie den Zielwert ueberschreitet und die
+    Schwellenwertsuche immer den maximal beobachteten Wert waehlt (getestet:
+    tau0 lief auf 0.95 hoch, kein einziger Fall wurde mehr eskaliert). Bleibt
+    hier nur als informative Kennzahl im Output, treibt aber keine Entscheidung."""
+    n = len(result)
+    ground_truth_rank = result["bootstrap_utility"].rank(ascending=False, method="first")
+    return (result["rank"] - ground_truth_rank).abs() / n
+
+
+def calibrate_threshold(values, target_escalation_rate):
+    """tau0/sigma0 als (1 - target_escalation_rate)-Quantil der tatsaechlich
+    beobachteten Werte - reine Coverage-Kalibrierung: sorgt dafuer, dass
+    ungefaehr target_escalation_rate der Faelle wegen dieser Groesse eskaliert
+    werden. Macht KEINE Aussage darueber, ob genau diese Faelle inhaltlich die
+    "falschen" sind (dafuer fehlt echte Ground Truth, s. Modulkopf) - bewusst
+    einfacher als eine korrektheitsbasierte Risk-Control, aber ohne die
+    Zirkularitaets-Falle des verworfenen Ground-Truth-Ansatzes (siehe
+    compute_bootstrap_error). Systemgrenzen.md Teil A.3 bleibt trotzdem gueltig:
+    dass eine Eskalationsrate von X% angemessen ist, ist eine Projektannahme,
+    keine aus der Literatur abgeleitete Groesse."""
+    if len(values) == 0:
+        return 0.0
+    return float(values.quantile(1 - target_escalation_rate))
+
+
+def compute_ampel_status(tau, sigma, tau0, sigma0):
+    """2x2-Matrix aus Konzept-README.md ("zentrale Idee") - tau hoch entscheidet
+    zuerst (Eskalation unabhaengig von sigma), sonst sigma."""
+    if tau > tau0:
+        return "klarer_fall_fuer_review"
+    if sigma > sigma0:
+        return "truegerische_ruhe"
+    return "robuste_uebereinstimmung"
+
+
 def main():
     print("=== step6-calibration ===")
     if MOCK_LLM:
@@ -189,15 +250,31 @@ def main():
     result, correlation = compute_tau(open_orders, response["ranking"])
     result["llm_begruendung"] = result["order_id"].map(response.get("begruendung", {}))
 
+    # Bootstrap-/Coverage-Kalibrierung (TICKET-B07) - s. Modulkopf: Platzhalter,
+    # keine belastbare Kalibrierung fuer einen Pilotbetrieb. bootstrap_error ist
+    # nur eine Diagnose-Spalte, treibt tau0/sigma0 NICHT (s. Docstring von
+    # compute_bootstrap_error, warum das verworfen wurde).
+    result["bootstrap_error"] = compute_bootstrap_error(result)
+    tau0 = calibrate_threshold(result["tau"], TARGET_ESCALATION_RATE)
+    sigma0 = calibrate_threshold(result["sigma"], TARGET_ESCALATION_RATE)
+    result["ampel_status"] = [
+        compute_ampel_status(r.tau, r.sigma, tau0, sigma0) for r in result.itertuples(index=False)
+    ]
+
     os.makedirs(os.path.dirname(OUTPUT_PATH) or ".", exist_ok=True)
     result.to_csv(OUTPUT_PATH, index=False)
 
     print(f"\nKendall-Tau-Korrelation (gesamte Rangfolge): {correlation:.3f}")
+    print(f"Coverage-Kalibrierung (PLATZHALTER, s. Modulkopf): tau0={tau0:.3f} sigma0={sigma0:.3f} "
+          f"(target_escalation_rate={TARGET_ESCALATION_RATE})")
     print(f"-> {OUTPUT_PATH}\n")
-    print(f"{'Auftrag':10} {'PGP':>4} {'LLM':>4} {'tau':>6} {'sigma':>7}  Begruendung (LLM)")
+    print(f"{'Auftrag':10} {'PGP':>4} {'LLM':>4} {'tau':>6} {'sigma':>7}  {'Ampel':22}  Begruendung (LLM)")
     for r in result.sort_values("tau", ascending=False).itertuples(index=False):
         print(f"{r.order_id:10} {r.rank:4d} {r.llm_rank:4d} {r.tau:6.3f} {r.sigma:7.3f}  "
-              f"{str(r.llm_begruendung)[:80]}")
+              f"{r.ampel_status:22}  {str(r.llm_begruendung)[:60]}")
+
+    counts = result["ampel_status"].value_counts()
+    print(f"\nVerteilung: {dict(counts)}")
 
 
 if __name__ == "__main__":
