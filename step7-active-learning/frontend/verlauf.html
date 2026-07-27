@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entscheidungsverlauf – Agentic-PMPlus</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Entscheidungsverlauf</h1>
+    <p class="app-subline">
+      Wer hat wann welche Entscheidung getroffen – und warum?
+    </p>
+    <p class="app-nav"><a href="index.html">&larr; Zur Auftrags-Warteschlange</a></p>
+  </header>
+
+  <main id="app">
+    <section class="toolbar" aria-label="Aktionen">
+      <p class="provenienz-legende">
+        <span class="provenienz-badge" data-provenienz="mensch">
+          <span class="provenienz-icon" aria-hidden="true">👤</span>
+          <span aria-hidden="true">M</span> Mensch entschieden
+        </span>
+        <span class="provenienz-badge" data-provenienz="agent">
+          <span class="provenienz-icon" aria-hidden="true">🤖</span>
+          <span aria-hidden="true">A</span> Automatisch übernommen
+        </span>
+      </p>
+      <button id="reload-btn" type="button" class="reload-btn">Neu laden</button>
+    </section>
+
+    <div id="status-region" aria-live="polite">
+      <p id="loading-message" class="loading">Verlauf wird geladen …</p>
+    </div>
+
+    <ol id="verlauf-list" class="verlauf-list" hidden></ol>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      "Automatisch übernommen" (🤖) bedeutet: kein Mensch hat diesen konkreten
+      Auftrag einzeln geprüft. Ein Mensch hat für einen ähnlichen Auftrag
+      (gleiches Produkt, nahes Fälligkeitsdatum) entschieden, und das System
+      hat diese Entscheidung automatisch übernommen (begrenzte Propagation).
+      Das ist bewusst optisch von einer echten menschlichen Entscheidung (👤)
+      unterschieden – nie eine "geheimnisvolle" Blackbox-Entscheidung.
+    </p>
+  </footer>
+
+  <script src="verlauf.js" defer></script>
+</body>
+</html>

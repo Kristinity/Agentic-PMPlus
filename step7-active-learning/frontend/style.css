@@ -309,3 +309,134 @@ body {
   color: var(--color-muted);
   font-size: 0.82rem;
 }
+
+/* ---------------------------------------------------------------------------
+   TICKET-F05 (Audit-Trail, verlauf.html/verlauf.js) - additiv angehaengt,
+   bestehende Regeln oben bewusst unveraendert gelassen (siehe Aufgaben-
+   stellung: Merge-Konflikte mit dem parallel an index.html/app.js
+   arbeitenden F02-Agenten klein halten). Wiederverwendet dieselben
+   CSS-Variablen (--color-*) wie F01 fuer Konsistenz. */
+
+.app-nav {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+.app-nav a {
+  color: var(--color-text);
+}
+
+.provenienz-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+/* Provenienz-Badges: Farbe UND Icon UND Text unterscheiden sich zwischen
+   "mensch" und "agent" (nicht nur Farbe) - selbes Prinzip wie die
+   Ampel-Badges in F01, wichtig fuer Farbfehlsichtigkeit. "agent" nutzt
+   bewusst dieselbe Signalfarbe wie "truegerische_ruhe" (gelb/orange) statt
+   Rot/Gruen - eine automatisch propagierte Entscheidung ist weder ein Fehler
+   (rot) noch eine vom Menschen aktiv geprueften Entscheidung (die es hier
+   nicht gibt), sondern ein eigener, gesondert zu betrachtender Zustand. */
+.provenienz-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.provenienz-badge[data-provenienz="mensch"] {
+  background: var(--color-robust-bg);
+  color: var(--color-robust-text);
+  border-color: var(--color-robust-border);
+}
+.provenienz-badge[data-provenienz="agent"] {
+  background: var(--color-truegerisch-bg);
+  color: var(--color-truegerisch-text);
+  border-color: var(--color-truegerisch-border);
+}
+.provenienz-badge:not([data-provenienz="mensch"]):not([data-provenienz="agent"]) {
+  background: var(--color-unbekannt-bg);
+  color: var(--color-unbekannt-text);
+  border-color: var(--color-unbekannt-border);
+}
+
+.provenienz-icon { font-size: 1rem; }
+
+.verlauf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.verlauf-entry {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 6px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+}
+.verlauf-entry[data-provenienz="mensch"] { border-left-color: var(--color-robust-border); }
+.verlauf-entry[data-provenienz="agent"] { border-left-color: var(--color-truegerisch-border); }
+.verlauf-entry:not([data-provenienz="mensch"]):not([data-provenienz="agent"]) {
+  border-left-color: var(--color-unbekannt-border);
+}
+
+.verlauf-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.verlauf-main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.verlauf-order-id {
+  font-weight: 600;
+}
+
+.verlauf-wahl {
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.verlauf-zeitstempel {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.provenienz-explain {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.verlauf-eigene-reihenfolge,
+.verlauf-begruendung {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.verlauf-eigene-reihenfolge .label,
+.verlauf-begruendung .label {
+  display: block;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.15rem;
+}
