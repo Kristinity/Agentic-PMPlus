@@ -1,0 +1,11 @@
+streamlit
+anthropic
+numpy
+scipy
+scikit-learn
+gpytorch
+torch
+pandas
+pyyaml
+python-dotenv
+matplotlib

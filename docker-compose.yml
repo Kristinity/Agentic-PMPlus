@@ -160,6 +160,30 @@ services:
     depends_on:
       - step7-active-learning
 
+  step9-upload-interface:
+    # Neue Userstory: eigene Auftragsdaten hochladen -> PGP+LLM-Priorisierung
+    # als Ergebnis zurueckbekommen, ohne Kommandozeile/Docker direkt bedienen
+    # zu muessen. Ruft step5-pgp/step6-calibration als Subprozesse auf (siehe
+    # pipeline.py) - deshalb Mounts von deren main.py statt eigener Kopie.
+    build: ./step9-upload-interface
+    env_file:
+      - .env
+    container_name: pmplus-step9
+    ports:
+      - "8501:8501"  # Streamlit
+    volumes:
+      - ./step5-pgp:/app/step5-pgp:ro
+      - ./step6-calibration:/app/step6-calibration:ro
+      - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
+      # Fallback-Stammdaten fuer alle nicht hochgeladenen ERP-Dateien - das
+      # von step3 erzeugte Datenset aus der normalen Pipeline.
+      - ./shared/data:/app/baseline_data:ro
+    networks:
+      - pmplus-net
+    depends_on:
+      step6-calibration:
+        condition: service_completed_successfully
+
 networks:
   pmplus-net:
     driver: bridge

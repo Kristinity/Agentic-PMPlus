@@ -65,6 +65,13 @@ Browser oeffnen: **http://localhost:8080**
 - Verlaufsseite: **http://localhost:8080/verlauf.html** (F05) – Herkunft
   jeder Entscheidung (Mensch vs. Agent-Propagation) nachvollziehbar.
 - API direkt: **http://localhost:8007/health**, **http://localhost:8007/eskalationen**.
+- Eigene Auftragsdaten hochladen und Priorisierung berechnen (ohne
+  Kommandozeile/Docker direkt zu bedienen): **http://localhost:8501**
+  (Streamlit, `step9-upload-interface/`). Pflicht ist `orders.csv`, alle
+  übrigen ERP-Stammdaten sind optional mit Fallback auf das zuletzt in
+  `shared/data/` erzeugte Datenset. Erzeugt nur ein Ergebnis (Tabelle +
+  CSV-Download) – ändert NICHT die laufende Warteschlange von Step 7; für
+  Review/Entscheidung weiterhin Port 8080 verwenden.
 
 Entscheidungen landen in `shared/feedback/entscheidungen.db` (SQLite, per
 Volume ausserhalb des Containers – ueberlebt `docker compose down` und

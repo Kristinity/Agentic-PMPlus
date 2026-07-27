@@ -26,7 +26,8 @@ PMPlus/
 ├── step5-pgp/             # Preference GP (μ, σ)
 ├── step6-calibration/     # unabhängiges LLM-Ranking + τ/σ-Schwellenwerte (Bootstrap-Kalibrierung)
 ├── step7-active-learning/ # Active Learning Loop: FastAPI-Server + Frontend (frontend/)
-└── step8-live-test/       # Userstories + Produkt-Backlog; main.py bleibt Platzhalter
+├── step8-live-test/       # Userstories + Produkt-Backlog; main.py bleibt Platzhalter
+└── step9-upload-interface/  # Streamlit: eigene Auftragsdaten hochladen -> Priorisierung als Ergebnis
 ```
 
 ## Setup
