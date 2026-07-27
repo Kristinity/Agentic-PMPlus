@@ -20,6 +20,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from preference_export import append_validated_preferences
 from propagation import propagate
 from rag_metadata import load_rag_metadata, resolve_matched_docs
 from store import insert_entscheidung, list_entscheidungen
@@ -106,11 +107,26 @@ def post_entscheidung(request: EntscheidungRequest):
         entschieden_von="mensch",
     )
 
+    orders_df = pd.read_csv(TAU_VERGLEICH_PATH)
+
+    # TICKET-B09: nur die echte Mensch-Entscheidung selbst wird als Praeferenzpaar
+    # exportiert - propagierte agent-Eintraege (unten) NICHT, sonst korreliert ein
+    # einzelnes menschliches Urteil mehrfach im Retraining-Datensatz (siehe
+    # preference_export.py Modulkopf).
+    append_validated_preferences(
+        decision_id=decision_id,
+        order_id=request.order_id,
+        wahl=request.wahl,
+        eigene_reihenfolge=request.eigene_reihenfolge,
+        begruendung=request.begruendung,
+        zeitstempel=zeitstempel,
+        orders_df=orders_df,
+    )
+
     # TICKET-B08: auf aehnliche, noch nicht entschiedene Faelle propagieren - gedrosselt
     # durch eine harte Obergrenze N (Systemgrenzen.md Teil D.1, nicht optional). Faelle
     # ueber N bleiben bewusst unangetastet eskaliert statt automatisch uebernommen zu
     # werden.
-    orders_df = pd.read_csv(TAU_VERGLEICH_PATH)
     already_decided_ids = {e["order_id"] for e in list_entscheidungen()}
     propagierte_faelle, _uebersprungen = propagate(
         order_id=request.order_id,
