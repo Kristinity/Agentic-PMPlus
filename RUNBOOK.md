@@ -65,11 +65,15 @@ Browser oeffnen: **http://localhost:8080**
 - Verlaufsseite: **http://localhost:8080/verlauf.html** (F05) – Herkunft
   jeder Entscheidung (Mensch vs. Agent-Propagation) nachvollziehbar.
 - API direkt: **http://localhost:8007/health**, **http://localhost:8007/eskalationen**.
-- Eigene Auftragsdaten hochladen und Priorisierung berechnen (ohne
-  Kommandozeile/Docker direkt zu bedienen): **http://localhost:8501**
-  (Streamlit, `step9-upload-interface/`). Pflicht ist `orders.csv`, alle
-  übrigen ERP-Stammdaten sind optional mit Fallback auf das zuletzt in
-  `shared/data/` erzeugte Datenset. Erzeugt nur ein Ergebnis (Tabelle +
+- Neue Aufträge hochladen und priorisieren lassen (ohne Kommandozeile/Docker
+  direkt zu bedienen): **http://localhost:8501** (Streamlit,
+  `step9-upload-interface/`). Die ERP-Stammdaten (Auftragshistorie,
+  Maschinen, Lager, Störungen) sind fixer Teil des Context Engineering
+  (`step3-erp-simulation/output_2026/`, read-only gemountet) und werden
+  NICHT hochgeladen – hochgeladen werden ausschließlich neue Aufträge nach
+  einem herunterladbaren Auftragstemplate; sie werden der bestehenden
+  Auftragslage hinzugefügt und im Kontext aller offenen Aufträge priorisiert
+  (mit 🆕-Markierung im Ergebnis). Erzeugt nur ein Ergebnis (Tabelle +
   CSV-Download) – ändert NICHT die laufende Warteschlange von Step 7; für
   Review/Entscheidung weiterhin Port 8080 verwenden.
 

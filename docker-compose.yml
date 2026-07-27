@@ -161,10 +161,10 @@ services:
       - step7-active-learning
 
   step9-upload-interface:
-    # Neue Userstory: eigene Auftragsdaten hochladen -> PGP+LLM-Priorisierung
-    # als Ergebnis zurueckbekommen, ohne Kommandozeile/Docker direkt bedienen
-    # zu muessen. Ruft step5-pgp/step6-calibration als Subprozesse auf (siehe
-    # pipeline.py) - deshalb Mounts von deren main.py statt eigener Kopie.
+    # Userstory: NUR neue Auftraege hochladen (nach Vorlage), nicht die
+    # ERP-Stammdaten - die sind fixer Teil des Context Engineering. Ruft
+    # step5-pgp/step6-calibration als Subprozesse auf (siehe pipeline.py) -
+    # deshalb Mounts von deren main.py statt eigener Kopie.
     build: ./step9-upload-interface
     env_file:
       - .env
@@ -175,14 +175,14 @@ services:
       - ./step5-pgp:/app/step5-pgp:ro
       - ./step6-calibration:/app/step6-calibration:ro
       - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
-      # Fallback-Stammdaten fuer alle nicht hochgeladenen ERP-Dateien - das
-      # von step3 erzeugte Datenset aus der normalen Pipeline.
-      - ./shared/data:/app/baseline_data:ro
+      # Fixe Kontext-Stammdaten (Auftragshistorie, Maschinen, Lager,
+      # Stoerungen) - bewusst das committete, versionierte output_2026/ statt
+      # des ephemeren shared/data (das je nach letztem Pipeline-Lauf
+      # abweicht) - Kontext soll stabil/reproduzierbar sein, kein Zufallswert
+      # je nach Startreihenfolge der anderen Services.
+      - ./step3-erp-simulation/output_2026:/app/baseline_data:ro
     networks:
       - pmplus-net
-    depends_on:
-      step6-calibration:
-        condition: service_completed_successfully
 
 networks:
   pmplus-net:
