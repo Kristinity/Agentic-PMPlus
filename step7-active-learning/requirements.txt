@@ -4,3 +4,6 @@ scipy
 scikit-learn
 pandas
 python-dotenv
+fastapi
+uvicorn
+pyyaml
