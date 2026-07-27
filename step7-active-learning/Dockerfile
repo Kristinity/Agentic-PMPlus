@@ -7,4 +7,6 @@ RUN pip install --no-cache-dir -r requirements.txt --break-system-packages || pi
 
 COPY . .
 
+EXPOSE 8000
+
 CMD ["python", "main.py"]

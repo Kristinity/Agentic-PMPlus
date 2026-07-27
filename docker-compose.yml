@@ -86,8 +86,14 @@ services:
     env_file:
       - .env
     container_name: pmplus-step7
+    ports:
+      - "8000:8000"
     volumes:
       - ./shared/data:/app/shared_data
+      # GET /eskalationen loest matched_rag_docs zu {doc_id, title, vertrauensstufe}
+      # auf (TICKET-B03) - liest dieselben kuratierten Dokumente wie step5-pgp direkt,
+      # kein neuer Export-Mechanismus in Step 4 noetig.
+      - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
     networks:
       - pmplus-net
     depends_on:
