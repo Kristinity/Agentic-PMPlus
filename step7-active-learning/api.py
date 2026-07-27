@@ -57,13 +57,18 @@ def health():
 def get_eskalationen():
     df = pd.read_csv(TAU_VERGLEICH_PATH)
     metadata_by_id = load_rag_metadata(RAG_DOCUMENTS_DIR)
-    # TICKET-B04: solange B07 (tau0/sigma0-Kalibrierung) nicht gelaufen ist, hat
-    # tau_vergleich.csv noch keine ampel_status-Spalte -> "unbekannt" statt eines
-    # geratenen Werts (AC aus TICKET-B04-GET-Eskalationen.md).
-    has_ampel_status = "ampel_status" in df.columns
 
     eskalationen = []
     for r in df.to_dict(orient="records"):
+        # TICKET-B04: solange B07 (tau0/sigma0-Kalibrierung) nicht gelaufen ist, hat
+        # tau_vergleich.csv noch keine ampel_status-Spalte -> "unbekannt" statt eines
+        # geratenen Werts (AC aus TICKET-B04-GET-Eskalationen.md). Ein einzelner NaN-Wert
+        # in einer sonst vorhandenen Spalte (z. B. eine leere CSV-Zelle fuer genau diesen
+        # Auftrag) faellt bewusst auf denselben "unbekannt"-Zustand zurueck statt NaN
+        # unveraendert durchzureichen - NaN ist kein gueltiges JSON und wuerde sonst die
+        # gesamte Antwort mit einem 500er zum Absturz bringen (gefunden beim Testen gegen
+        # eine Zeile ohne Kalibrierungsdaten).
+        ampel_status = _none_if_nan(r.get("ampel_status"))
         eskalationen.append({
             "order_id": r["order_id"],
             "pgp": {
@@ -78,7 +83,7 @@ def get_eskalationen():
                 "begruendung": _none_if_nan(r.get("llm_begruendung")),
                 "matched_rag_docs": resolve_matched_docs(r.get("matched_rag_docs"), metadata_by_id),
             },
-            "ampel_status": r["ampel_status"] if has_ampel_status else "unbekannt",
+            "ampel_status": ampel_status if ampel_status is not None else "unbekannt",
         })
     return eskalationen
 
