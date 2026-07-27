@@ -13,14 +13,26 @@ matched_rag_docs unter llm - tatsaechlich stammen die Treffer aus der
 PGP-Regelanwendung (step5-pgp/main.py, apply_rag_adjustments), nicht vom LLM.
 Hier deshalb als eigenes, geteiltes Feld auf oberster Ebene statt faelschlich
 dem LLM zugeschrieben.
+
+TICKET-B05 (step8-live-test/Produkt-Backlog/TICKET-B05-POST-Entscheidung.md):
+POST /entscheidung - nimmt die menschliche Entscheidung entgegen und
+persistiert sie (store.py). entschieden_von ist im Request-Schema absichtlich
+GAR NICHT vorhanden (Pydantic ignoriert unbekannte Felder), und store.py
+verdrahtet 'mensch' ohnehin fest - der Client kann das serverseitig unter
+keinen Umstaenden ueberschreiben. Bei wahl == 'eigene_reihenfolge' (der
+einzige Fall, der von PGP UND LLM gleichzeitig abweicht) ist begruendung
+Pflicht, sonst lehnt die Validierung mit 422 ab.
 """
 
 import os
 
 import pandas as pd
 from fastapi import APIRouter
+from pydantic import BaseModel, model_validator
+from typing import Literal, Optional
 
 import rag_lookup
+import store
 
 router = APIRouter()
 
@@ -75,3 +87,40 @@ def get_eskalationen():
 
     eskalationen.sort(key=lambda e: e["pgp"]["rank"])
     return {"eskalationen": eskalationen}
+
+
+class EntscheidungRequest(BaseModel):
+    order_id: str
+    wahl: Literal["folgt_pgp", "folgt_llm", "eigene_reihenfolge"]
+    eigene_reihenfolge: Optional[str] = None
+    begruendung: Optional[str] = None
+    # Bewusst KEIN entschieden_von-Feld - siehe Modulkopf. Ein evtl. trotzdem im
+    # Request-Body mitgeschicktes entschieden_von wird von Pydantic (extra="ignore",
+    # Standardverhalten) stillschweigend verworfen, nicht verarbeitet.
+
+    @model_validator(mode="after")
+    def begruendung_pflicht_bei_eigener_reihenfolge(self):
+        if self.wahl == "eigene_reihenfolge" and not (self.begruendung and self.begruendung.strip()):
+            raise ValueError(
+                "begruendung ist Pflichtfeld bei wahl='eigene_reihenfolge' "
+                "(Abweichung von PGP UND LLM gleichzeitig)"
+            )
+        return self
+
+
+@router.post("/entscheidung")
+def post_entscheidung(payload: EntscheidungRequest):
+    decision_id = store.save_entscheidung(
+        order_id=payload.order_id,
+        wahl=payload.wahl,
+        begruendung=payload.begruendung,
+        eigene_reihenfolge=payload.eigene_reihenfolge,
+    )
+    gespeichert = store.list_entscheidungen(order_id=payload.order_id)[-1]
+    return {
+        "decision_id": decision_id,
+        "zeitstempel": gespeichert["zeitstempel"],
+        "entschieden_von": gespeichert["entschieden_von"],  # zur Verifikation: immer "mensch"
+        # Platzhalter bis TICKET-B08 existiert (Propagation mit Obergrenze N).
+        "propagierte_faelle": [],
+    }
