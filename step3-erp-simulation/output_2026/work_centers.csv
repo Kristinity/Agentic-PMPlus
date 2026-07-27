@@ -1,0 +1,6 @@
+work_center_id,capacity_hours_per_shift,shifts_per_day,availability_pct
+WC-Stanze-01,8,3,0.92
+WC-Presse-KK-02,8,3,0.9
+WC-Presse-DV-05,8,2,0.88
+WC-Druck-03,8,2,0.88
+WC-Dichtung-04,8,2,0.9
