@@ -22,8 +22,19 @@ verdrahtet 'mensch' ohnehin fest - der Client kann das serverseitig unter
 keinen Umstaenden ueberschreiben. Bei wahl == 'eigene_reihenfolge' (der
 einzige Fall, der von PGP UND LLM gleichzeitig abweicht) ist begruendung
 Pflicht, sonst lehnt die Validierung mit 422 ab.
+
+TICKET-B06 (step8-live-test/Produkt-Backlog/TICKET-B06-GET-Verlauf.md):
+GET /verlauf - chronologischer Audit-Trail aus store.list_entscheidungen().
+
+TICKET-B09 (step8-live-test/Produkt-Backlog/TICKET-B09-Praeferenzpaar-Export.md):
+jede gespeicherte Entscheidung wird zusaetzlich, angereichert mit dem
+PGP/LLM-Kontext aus tau_vergleich.csv zum Entscheidungszeitpunkt, an
+shared_data/validated_preferences.csv angehaengt. Die step5-pgp/main.py-
+seitige Nutzung dieser Datei fuer echtes Retraining ist AUSDRUECKLICH NICHT
+Teil dieses Tickets (siehe Ticket-Datei) - hier wird nur exportiert.
 """
 
+import csv
 import os
 
 import pandas as pd
@@ -35,6 +46,14 @@ import rag_lookup
 import store
 
 router = APIRouter()
+
+VALIDATED_PREFERENCES_PATH = os.environ.get(
+    "VALIDATED_PREFERENCES_PATH", os.path.join("shared_data", "validated_preferences.csv")
+)
+PREFERENCE_FIELDS = [
+    "order_id", "wahl", "eigene_reihenfolge", "begruendung", "entschieden_von",
+    "zeitstempel", "pgp_rank", "pgp_mu", "pgp_sigma", "llm_rank", "llm_tau",
+]
 
 TAU_VERGLEICH_PATH = os.environ.get(
     "TAU_VERGLEICH_PATH", os.path.join("shared_data", "tau_vergleich.csv")
@@ -108,6 +127,46 @@ class EntscheidungRequest(BaseModel):
         return self
 
 
+def _lookup_pgp_llm_context(order_id):
+    """Bestmoegliche PGP/LLM-Werte fuer diesen Auftrag aus der aktuellen
+    tau_vergleich.csv - kann fehlen (Auftrag nicht mehr offen, andere
+    Laufserie), dann bleiben die Felder leer statt geraten."""
+    if not os.path.exists(TAU_VERGLEICH_PATH):
+        return {}
+    df = pd.read_csv(TAU_VERGLEICH_PATH)
+    match = df[df["order_id"] == order_id]
+    if match.empty:
+        return {}
+    row = match.iloc[0]
+    return {
+        "pgp_rank": _safe(row.get("rank")), "pgp_mu": _safe(row.get("mu")),
+        "pgp_sigma": _safe(row.get("sigma")), "llm_rank": _safe(row.get("llm_rank")),
+        "llm_tau": _safe(row.get("tau")),
+    }
+
+
+def export_validated_preference(entscheidung):
+    """TICKET-B09: haengt die validierte Entscheidung an
+    shared_data/validated_preferences.csv an."""
+    context = _lookup_pgp_llm_context(entscheidung["order_id"])
+    row = {
+        "order_id": entscheidung["order_id"],
+        "wahl": entscheidung["wahl"],
+        "eigene_reihenfolge": entscheidung["eigene_reihenfolge"],
+        "begruendung": entscheidung["begruendung"],
+        "entschieden_von": entscheidung["entschieden_von"],
+        "zeitstempel": entscheidung["zeitstempel"],
+        **context,
+    }
+    os.makedirs(os.path.dirname(VALIDATED_PREFERENCES_PATH) or ".", exist_ok=True)
+    file_exists = os.path.exists(VALIDATED_PREFERENCES_PATH)
+    with open(VALIDATED_PREFERENCES_PATH, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=PREFERENCE_FIELDS)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+
 @router.post("/entscheidung")
 def post_entscheidung(payload: EntscheidungRequest):
     decision_id = store.save_entscheidung(
@@ -117,6 +176,7 @@ def post_entscheidung(payload: EntscheidungRequest):
         eigene_reihenfolge=payload.eigene_reihenfolge,
     )
     gespeichert = store.list_entscheidungen(order_id=payload.order_id)[-1]
+    export_validated_preference(gespeichert)
     return {
         "decision_id": decision_id,
         "zeitstempel": gespeichert["zeitstempel"],

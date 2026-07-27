@@ -55,7 +55,7 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 | [B06](TICKET-B06-GET-Verlauf.md) | `GET /verlauf` | backend-dev | Mittel | B02 | – | ✅ erledigt |
 | [B07](TICKET-B07-Kalibrierung.md) | τ₀/σ₀-Kalibrierung (Risk-Coverage) | backend-dev | Hoch (fachlich Blocker) | – | – | ✅ erledigt (Bootstrap-Variante, `step6-calibration/main.py`) |
 | [B08](TICKET-B08-Propagation.md) | Propagation mit harter Obergrenze N | backend-dev | Hoch (sicherheitsrelevant) | B05 | – | offen |
-| [B09](TICKET-B09-Praeferenzpaar-Export.md) | Präferenzpaar-Export für Step-5-Retraining | backend-dev | Mittel | B02, B05 | – | offen |
+| [B09](TICKET-B09-Praeferenzpaar-Export.md) | Präferenzpaar-Export für Step-5-Retraining | backend-dev | Mittel | B02, B05 | – | ✅ erledigt |
 | [F01](TICKET-F01-Warteschlange.md) | Warteschlange mit Ampel-Status | frontend-dev | Hoch | B04 | ✅ | offen |
 | [F02](TICKET-F02-Eskalations-Review.md) | Eskalations-Review (PGP/LLM getrennt) | frontend-dev | Hoch | B04, B03 | ✅ | offen |
 | [F03](TICKET-F03-Entscheidungserfassung.md) | Entscheidungserfassung mit erzwungener Provenienz | frontend-dev | Hoch | B05, F02 (lose: B08) | ✅ | offen |
