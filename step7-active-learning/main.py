@@ -12,6 +12,17 @@ beim Serverstart initialisiert.
 
 TICKET-B04: GET /eskalationen (siehe api.py).
 
+TICKET-F01 (step8-live-test/Produkt-Backlog/TICKET-F01-Warteschlange.md):
+CORSMiddleware ergaenzt, damit step7-active-learning/frontend/ (statisches
+HTML/JS, ueber einen eigenen einfachen Webserver auf einem anderen Port
+ausgeliefert, siehe frontend/README.md) im Browser tatsaechlich gegen diese
+API fetchen kann - ohne CORS-Header blockiert der Browser die Antwort
+serverseitig unveraendert, nur das Lesen im JS schlaegt fehl. allow_origins="*"
+ist eine bewusste Prototyp-Vereinfachung (keine Auth/keine sensiblen
+Cookies im Spiel, siehe Produkt-Backlog "Nicht in diesem Backlog": Auth ist
+explizit offen) - vor einem echten Pilotbetrieb auf die tatsaechliche
+Frontend-Origin einschraenken.
+
 Aktueller Umfang (B01+B02+B04): Server-Grundgeruest + Health-Check +
 Persistenz-Initialisierung + Eskalations-Liste. POST /entscheidung und
 GET /verlauf folgen in B05/B06, siehe step8-live-test/Produkt-Backlog/.
@@ -21,11 +32,18 @@ import os
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 import api
 import store
 
 app = FastAPI(title="Agentic-PMPlus - step7-active-learning")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(api.router)
 
 
