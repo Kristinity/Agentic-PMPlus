@@ -10,10 +10,11 @@ step7-active-learning/Architektur-Backend-Frontend-Schnittstelle.md Abschnitt 1.
 TICKET-B02: SQLite-Persistenz fuer die Entscheidungshistorie (siehe store.py),
 beim Serverstart initialisiert.
 
-Aktueller Umfang (B01+B02): Server-Grundgeruest + Health-Check + Persistenz-
-Initialisierung. Die eigentlichen Endpunkte (GET /eskalationen,
-POST /entscheidung, GET /verlauf) folgen in separaten Tickets (B04, B05, B06),
-siehe step8-live-test/Produkt-Backlog/.
+TICKET-B04: GET /eskalationen (siehe api.py).
+
+Aktueller Umfang (B01+B02+B04): Server-Grundgeruest + Health-Check +
+Persistenz-Initialisierung + Eskalations-Liste. POST /entscheidung und
+GET /verlauf folgen in B05/B06, siehe step8-live-test/Produkt-Backlog/.
 """
 
 import os
@@ -21,9 +22,11 @@ import os
 import uvicorn
 from fastapi import FastAPI
 
+import api
 import store
 
 app = FastAPI(title="Agentic-PMPlus - step7-active-learning")
+app.include_router(api.router)
 
 
 @app.on_event("startup")

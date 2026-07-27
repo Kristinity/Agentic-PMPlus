@@ -47,7 +47,7 @@ kommen unverändert aus den bisherigen Steps:
 
 | Endpunkt | Zweck | Request | Response (Kernfelder) |
 |---|---|---|---|
-| `GET /eskalationen` | Warteschlange + Review-Daten | – | Liste: `order_id`, `pgp: {rank, mu, sigma, begruendung}`, `llm: {rank, tau, begruendung, matched_rag_docs}`, `ampel_status` (🟢/🟡/🔴 nach der 2×2-Matrix) |
+| `GET /eskalationen` | Warteschlange + Review-Daten | – | Liste: `order_id`, `pgp: {rank, mu, sigma, begruendung}`, `llm: {rank, tau, begruendung}`, `matched_rag_docs` (eigenes Feld, stammt aus PGP-Regelanwendung - **korrigiert bei TICKET-B04-Umsetzung**, ursprünglich hier fälschlich unter `llm` skizziert), `ampel_status` (🟢/🟡/🔴 nach der 2×2-Matrix) |
 | `POST /entscheidung` | Menschliche Entscheidung erfassen | `order_id`, `wahl: "folgt_pgp"\|"folgt_llm"\|"eigene_reihenfolge"`, `eigene_reihenfolge?`, `begruendung` (**Pflicht** bei Abweichung von PGP und LLM), `entschieden_von: "mensch"` (fest, nicht vom Client überschreibbar) | `decision_id`, `zeitstempel`, `propagierte_faelle: [order_id, ...]` |
 | `GET /verlauf` | Audit-Trail | optionale Filter (Zeitraum, order_id) | Liste aller Entscheidungen (automatisch + eskaliert), inkl. wer/was entschieden hat |
 | `POST /rekalibrierung` (intern/getriggert, kein UI-Button) | Stößt Re-Kalibrierung von τ₀/σ₀ (Step 6) mit den neuen validierten Fällen an | – | Status/neue Schwellenwerte |
