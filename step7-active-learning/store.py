@@ -68,6 +68,30 @@ def save_entscheidung(order_id, wahl, begruendung=None, eigene_reihenfolge=None,
         return cur.lastrowid
 
 
+def save_propagierte_entscheidung(order_id, wahl, begruendung, db_path=DB_PATH):
+    """TICKET-B08 (step8-live-test/Produkt-Backlog/TICKET-B08-Propagation.md):
+    persistiert eine per Propagation AUTOMATISCH uebernommene Entscheidung fuer einen
+    aehnlichen Fall. entschieden_von ist hier bewusst fest auf 'agent' verdrahtet (NICHT
+    'mensch', Analogie zur Verdrahtung in save_entscheidung oben) - Provenienz-Pflicht
+    aus Systemgrenzen.md Teil D: eine automatisch propagierte Entscheidung darf sich im
+    Audit-Trail nie als menschliches Urteil ausgeben, selbst wenn sie inhaltlich die
+    Entscheidung eines Menschen fuer einen anderen, aehnlichen Auftrag uebernimmt. Ohne
+    diese Trennung koennte sich das System unbemerkt an seinen eigenen propagierten
+    Ausgaben "bestaetigen" statt an echtem Feedback zu lernen (Systemgrenzen.md Teil D.1).
+    Kein eigenes eigene_reihenfolge-Feld - propagation.py propagiert ausschliesslich
+    wahl in {folgt_pgp, folgt_llm}, s. dortiger Modulkopf."""
+    zeitstempel = datetime.now(timezone.utc).isoformat()
+    with get_connection(db_path) as conn:
+        cur = conn.execute(
+            "INSERT INTO entscheidungen "
+            "(order_id, wahl, eigene_reihenfolge, begruendung, entschieden_von, zeitstempel) "
+            "VALUES (?, ?, NULL, ?, 'agent', ?)",
+            (order_id, wahl, begruendung, zeitstempel),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
 def list_entscheidungen(order_id=None, db_path=DB_PATH):
     query = "SELECT * FROM entscheidungen"
     params = ()

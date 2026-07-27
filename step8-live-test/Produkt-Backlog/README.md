@@ -54,7 +54,7 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 | [B05](TICKET-B05-POST-Entscheidung.md) | `POST /entscheidung` | backend-dev | Hoch | B01, B02 | ✅ | ✅ erledigt |
 | [B06](TICKET-B06-GET-Verlauf.md) | `GET /verlauf` | backend-dev | Mittel | B02 | – | ✅ erledigt |
 | [B07](TICKET-B07-Kalibrierung.md) | τ₀/σ₀-Kalibrierung (Risk-Coverage) | backend-dev | Hoch (fachlich Blocker) | – | – | ✅ erledigt (Bootstrap-Variante, `step6-calibration/main.py`) |
-| [B08](TICKET-B08-Propagation.md) | Propagation mit harter Obergrenze N | backend-dev | Hoch (sicherheitsrelevant) | B05 | – | offen |
+| [B08](TICKET-B08-Propagation.md) | Propagation mit harter Obergrenze N | backend-dev | Hoch (sicherheitsrelevant) | B05 | – | ✅ erledigt |
 | [B09](TICKET-B09-Praeferenzpaar-Export.md) | Präferenzpaar-Export für Step-5-Retraining | backend-dev | Mittel | B02, B05 | – | ✅ erledigt |
 | [F01](TICKET-F01-Warteschlange.md) | Warteschlange mit Ampel-Status | frontend-dev | Hoch | B04 | ✅ | offen |
 | [F02](TICKET-F02-Eskalations-Review.md) | Eskalations-Review (PGP/LLM getrennt) | frontend-dev | Hoch | B04, B03 | ✅ | offen |
@@ -78,5 +78,7 @@ akzeptabel, für echten Einsatz nicht).
 ## Nicht in diesem Backlog (weiterhin bewusst offen)
 
 Aus `Backend-Backlog.md`/`Architektur-Backend-Frontend-Schnittstelle.md` übernommen, hier
-nicht neu entschieden: konkretes Ähnlichkeitsmaß für die Propagation, exakter Wert von N,
-Authentifizierung/Autorisierung der API.
+nicht neu entschieden: Authentifizierung/Autorisierung der API. (Konkretes Ähnlichkeitsmaß
+für die Propagation und der Wert von N sind inzwischen in B08 als dokumentierte
+Implementierungsentscheidung getroffen, s. `TICKET-B08-Propagation.md` – weiterhin
+empirisch mit echten Nutzungsdaten zu überprüfen, keine bewiesene Methode.)

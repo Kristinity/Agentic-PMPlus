@@ -32,6 +32,18 @@ PGP/LLM-Kontext aus tau_vergleich.csv zum Entscheidungszeitpunkt, an
 shared_data/validated_preferences.csv angehaengt. Die step5-pgp/main.py-
 seitige Nutzung dieser Datei fuer echtes Retraining ist AUSDRUECKLICH NICHT
 Teil dieses Tickets (siehe Ticket-Datei) - hier wird nur exportiert.
+
+TICKET-B08 (step8-live-test/Produkt-Backlog/TICKET-B08-Propagation.md):
+nach dem Speichern einer menschlichen Entscheidung wird propagation.propagate()
+aufgerufen (Aehnlichkeitsmass + harte Obergrenze N, s. dortiger Modulkopf) und
+liefert die tatsaechlich propagierten order_ids in propagierte_faelle statt des
+bisherigen []-Platzhalters. Propagierte Faelle werden ueber
+store.save_propagierte_entscheidung() mit entschieden_von="agent" persistiert
+(Provenienz-Pflicht, Systemgrenzen.md Teil D) - NICHT ueber
+export_validated_preference(), damit propagierte (agentengenerierte) Faelle nicht
+faelschlich als menschliches Trainingssignal fuer Step 5 exportiert werden (s.
+Systemgrenzen.md Teil D.1: sonst riskiert das System, sich an eigenen frueheren
+Agent-Ausgaben zu "bestaetigen" statt an echtem Experten-Feedback zu lernen).
 """
 
 import csv
@@ -42,6 +54,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, model_validator
 from typing import Literal, Optional
 
+import propagation
 import rag_lookup
 import store
 
@@ -167,6 +180,38 @@ def export_validated_preference(entscheidung):
         writer.writerow(row)
 
 
+def _propagate_decision(payload, decision_id):
+    """TICKET-B08: findet aehnliche, noch offene/noch nicht entschiedene Faelle (auf
+    Basis von TAU_VERGLEICH_PATH, s. propagation.py fuer das Aehnlichkeitsmass) und
+    uebernimmt die Entscheidung automatisch fuer bis zu PROPAGATION_LIMIT_N davon. Faelle
+    ueber der Obergrenze bleiben unangetastet eskaliert (Systemgrenzen.md Teil D.1, nicht
+    optional). Gibt die Liste der tatsaechlich propagierten order_ids zurueck."""
+    if not os.path.exists(TAU_VERGLEICH_PATH):
+        return []
+    orders_df = pd.read_csv(TAU_VERGLEICH_PATH)
+    # bereits entschiedene Faelle (inkl. der soeben gespeicherten menschlichen
+    # Entscheidung selbst) duerfen nicht nochmal ueberschrieben werden.
+    already_decided_ids = {e["order_id"] for e in store.list_entscheidungen()}
+    propagiert, _uebersprungen = propagation.propagate(
+        order_id=payload.order_id,
+        wahl=payload.wahl,
+        orders_df=orders_df,
+        already_decided_ids=already_decided_ids,
+    )
+    for propagierter_order_id in propagiert:
+        store.save_propagierte_entscheidung(
+            order_id=propagierter_order_id,
+            wahl=payload.wahl,
+            begruendung=(
+                f"Automatisch propagiert (TICKET-B08) von Entscheidung #{decision_id} "
+                f"fuer Auftrag {payload.order_id} - Aehnlichkeitsmass: gleiches "
+                f"product_id + due_date innerhalb {propagation.PROPAGATION_WINDOW_DAYS} "
+                f"Tagen, Obergrenze N={propagation.PROPAGATION_LIMIT_N} (s. propagation.py)."
+            ),
+        )
+    return propagiert
+
+
 @router.post("/entscheidung")
 def post_entscheidung(payload: EntscheidungRequest):
     decision_id = store.save_entscheidung(
@@ -177,12 +222,13 @@ def post_entscheidung(payload: EntscheidungRequest):
     )
     gespeichert = store.list_entscheidungen(order_id=payload.order_id)[-1]
     export_validated_preference(gespeichert)
+    propagierte_faelle = _propagate_decision(payload, decision_id)
     return {
         "decision_id": decision_id,
         "zeitstempel": gespeichert["zeitstempel"],
         "entschieden_von": gespeichert["entschieden_von"],  # zur Verifikation: immer "mensch"
-        # Platzhalter bis TICKET-B08 existiert (Propagation mit Obergrenze N).
-        "propagierte_faelle": [],
+        # TICKET-B08: echte propagierte order_ids statt des bisherigen []-Platzhalters.
+        "propagierte_faelle": propagierte_faelle,
     }
 
 
