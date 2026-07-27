@@ -223,6 +223,31 @@ def apply_rag_adjustments(order, buffer_days, trusted_docs, shortages, start_dat
     return sla_breach, material_precedent, matched_docs
 
 
+def generate_begruendung(urgency, scarcity, material_risk, contention_norm, sla_breach,
+                          material_precedent, buffer_days):
+    """Menschenlesbare Kurzbegruendung aus den tatsaechlich berechneten Faktoren -
+    fuer die Eskalations-Review-Anzeige im Frontend (siehe
+    step7-active-learning/Architektur-Backend-Frontend-Schnittstelle.md, GET
+    /eskalationen braucht pgp.begruendung analog zu llm.begruendung). Schwellenwerte
+    sind eine dokumentierte Heuristik, keine gelernte/validierte Groesse."""
+    reasons = []
+    if sla_breach:
+        reasons.append(f"SLA-Eskalation (Puffer {buffer_days}d < 3 Arbeitstage)")
+    if material_precedent:
+        reasons.append("Materialengpass-Praezedenzfall (Becks bevorzugt)")
+    if urgency > 0.7:
+        reasons.append(f"hohe zeitliche Dringlichkeit (Puffer {buffer_days}d)")
+    if scarcity > 0.5:
+        reasons.append("knappe Maschinenverfuegbarkeit auf dem Fertigungsweg")
+    if material_risk > 0.3:
+        reasons.append("Materialverfuegbarkeitsrisiko bei Stuecklisten-Komponente")
+    if contention_norm > 0.5:
+        reasons.append("hohe Konkurrenz um dieselben Arbeitsplaetze")
+    if not reasons:
+        reasons.append("keine dominanten Risikofaktoren, Einstufung ueber Basis-Faktoren")
+    return "; ".join(reasons)
+
+
 def build_features(orders_subset, all_orders, erp, trusted_docs, as_of):
     start_date, routing_by_product, wc_info, bom_by_product, breakdowns, shortages = build_lookup_tables(erp)
     contentions = contention_for_orders(orders_subset, all_orders)
@@ -238,12 +263,17 @@ def build_features(orders_subset, all_orders, erp, trusted_docs, as_of):
         sla_breach, material_precedent, matched_docs = apply_rag_adjustments(
             order, buffer_days, trusted_docs, shortages, start_date
         )
+        begruendung = generate_begruendung(
+            urgency, scarcity, material_risk, contention_norm, sla_breach,
+            material_precedent, buffer_days,
+        )
 
         rows.append([urgency, scarcity, material_risk, contention_norm, quantity_proxy, sla_breach, material_precedent])
         meta_rows.append({
             "order_id": order["order_id"], "customer": order["customer"],
             "product_id": order["product_id"], "due_date": order["due_date"].date().isoformat(),
             "buffer_days": buffer_days, "matched_rag_docs": matched_docs,
+            "begruendung": begruendung,
         })
     return np.array(rows, dtype=np.float32), meta_rows
 
@@ -355,6 +385,7 @@ def main():
             "product_id": m["product_id"], "due_date": m["due_date"],
             "buffer_days": m["buffer_days"], "mu": float(mu_i), "sigma": float(sigma_i),
             "matched_rag_docs": ";".join(m["matched_rag_docs"]),
+            "pgp_begruendung": m["begruendung"],
         }
         for i, (mu_i, sigma_i, m) in enumerate(ranking)
     ]).to_csv(out_path, index=False)
@@ -367,6 +398,7 @@ def main():
             f"faellig {m['due_date']}, Puffer {m['buffer_days']}d) "
             f"mu={mu_i:.3f} sigma={sigma_i:.3f}{docs}"
         )
+        print(f"     Begruendung: {m['begruendung']}")
 
 
 if __name__ == "__main__":
