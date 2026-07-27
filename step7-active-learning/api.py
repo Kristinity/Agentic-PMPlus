@@ -12,6 +12,7 @@ Merges. Response trennt pgp/llm strikt in zwei Objekte (nicht verhandelbar, s.
 Architektur-Doc Abschnitt 3) und ergaenzt ampel_status.
 """
 
+import json
 import math
 import os
 from typing import List, Literal, Optional
@@ -29,6 +30,14 @@ TAU_VERGLEICH_PATH = os.environ.get(
     "TAU_VERGLEICH_PATH", os.path.join("shared_data", "tau_vergleich.csv")
 )
 RAG_DOCUMENTS_DIR = os.environ.get("RAG_DOCUMENTS_DIR", "rag_documents")
+KALIBRIERUNG_SCHWELLENWERTE_PATH = os.environ.get(
+    "KALIBRIERUNG_SCHWELLENWERTE_PATH",
+    os.path.join("shared_data", "kalibrierung_schwellenwerte.json"),
+)
+KALIBRIERUNG_RISK_COVERAGE_PATH = os.environ.get(
+    "KALIBRIERUNG_RISK_COVERAGE_PATH",
+    os.path.join("shared_data", "kalibrierung_risk_coverage.csv"),
+)
 
 app = FastAPI(title="Agentic-PMPlus - step7-active-learning")
 
@@ -164,3 +173,43 @@ def get_verlauf(
     als ISO-8601-Zeitstempel, siehe store.list_entscheidungen). entschieden_von macht die
     Mensch-/Agent-Provenienz pro Eintrag erkennbar (Systemgrenzen.md Teil B.6)."""
     return list_entscheidungen(order_id=order_id, ab=ab, bis=bis)
+
+
+@app.get("/kalibrierung")
+def get_kalibrierung():
+    """TICKET-F06 (Kalibrierungs-Gesundheit, optional/Post-MVP): aktuelle tau0/sigma0-
+    Schwellenwerte + diagnostische Risk-Coverage-Kurven aus
+    step6-calibration/kalibrierung.py (TICKET-B07), plus die aktuelle Eskalationsrate und
+    den Anteil "truegerische Ruhe" (Gelb) aus der laufenden tau_vergleich.csv.
+
+    Liefert nur eine Momentaufnahme, KEINE "Eskalationsrate ueber Zeit" - dafuer muesste
+    jeder Kalibrierungslauf historisiert werden, was kalibrierung.py aktuell nicht tut
+    (es ueberschreibt dieselbe Datei). Diese Einschraenkung ist bewusst nicht verschwiegen,
+    sondern hier dokumentiert, statt eine erfundene Zeitreihe auszugeben."""
+    if not os.path.exists(KALIBRIERUNG_SCHWELLENWERTE_PATH):
+        raise HTTPException(
+            status_code=404,
+            detail="Noch keine Kalibrierung gelaufen (step6-calibration/kalibrierung.py, TICKET-B07).",
+        )
+
+    with open(KALIBRIERUNG_SCHWELLENWERTE_PATH, encoding="utf-8") as f:
+        schwellenwerte = json.load(f)
+
+    risk_coverage = []
+    if os.path.exists(KALIBRIERUNG_RISK_COVERAGE_PATH):
+        risk_coverage = pd.read_csv(KALIBRIERUNG_RISK_COVERAGE_PATH).to_dict(orient="records")
+
+    eskalationsrate = None
+    truegerische_ruhe_anteil = None
+    if os.path.exists(TAU_VERGLEICH_PATH):
+        df = pd.read_csv(TAU_VERGLEICH_PATH)
+        if "ampel_status" in df.columns and len(df) > 0:
+            eskalationsrate = float(df["ampel_status"].isin(["\U0001F534", "\U0001F7E1"]).mean())
+            truegerische_ruhe_anteil = float((df["ampel_status"] == "\U0001F7E1").mean())
+
+    return {
+        **schwellenwerte,
+        "risk_coverage": risk_coverage,
+        "eskalationsrate": eskalationsrate,
+        "truegerische_ruhe_anteil": truegerische_ruhe_anteil,
+    }
