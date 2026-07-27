@@ -1,5 +1,6 @@
 # TICKET-B02 – SQLite-Persistenz für Entscheidungen
 
+**Status:** ✅ Erledigt (2026-07-27)
 **Rolle:** backend-dev
 **Priorität:** Hoch
 **Abhängigkeiten:** [B01](TICKET-B01-Server-Grundgeruest.md)
@@ -18,8 +19,9 @@ Schreibzugriffe aus einer interaktiven UI ungeeignet (siehe
 
 ## Definition of Done
 - Allgemeine DoD aus `README.md` dieses Ordners erfüllt.
-- Schreiben + Lesen eines Testeintrags per Skript verifiziert.
-- Datei persistiert über Container-Neustart (Volume-Mount geprüft).
+- Schreiben + Lesen eines Testeintrags per Skript verifiziert. ✅
+- Datei persistiert über Container-Neustart (Volume-Mount geprüft). ✅ Getestet: Eintrag
+  war nach komplettem Container-Stop/-Neustart mit demselben Mount noch vorhanden.
 
 ## Folgetickets
 [B05](TICKET-B05-POST-Entscheidung.md), [B06](TICKET-B06-GET-Verlauf.md),

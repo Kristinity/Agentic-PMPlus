@@ -7,10 +7,13 @@ Batch-Skript, sondern ein laufender Server - ein Mensch (Produktionsplaner)
 muss eskalierte Faelle interaktiv pruefen und entscheiden koennen, siehe
 step7-active-learning/Architektur-Backend-Frontend-Schnittstelle.md Abschnitt 1.
 
-Aktueller Umfang (nur B01): Server-Grundgeruest + Health-Check. Die
-eigentlichen Endpunkte (GET /eskalationen, POST /entscheidung, GET /verlauf)
-folgen in separaten Tickets (B04, B05, B06), siehe
-step8-live-test/Produkt-Backlog/.
+TICKET-B02: SQLite-Persistenz fuer die Entscheidungshistorie (siehe store.py),
+beim Serverstart initialisiert.
+
+Aktueller Umfang (B01+B02): Server-Grundgeruest + Health-Check + Persistenz-
+Initialisierung. Die eigentlichen Endpunkte (GET /eskalationen,
+POST /entscheidung, GET /verlauf) folgen in separaten Tickets (B04, B05, B06),
+siehe step8-live-test/Produkt-Backlog/.
 """
 
 import os
@@ -18,7 +21,15 @@ import os
 import uvicorn
 from fastapi import FastAPI
 
+import store
+
 app = FastAPI(title="Agentic-PMPlus - step7-active-learning")
+
+
+@app.on_event("startup")
+def on_startup():
+    db_path = store.init_db()
+    print(f"Entscheidungs-DB initialisiert: {db_path}")
 
 
 @app.get("/")
@@ -30,8 +41,8 @@ def health():
 def main():
     port = int(os.environ.get("PORT", "8000"))
     print("=== step7-active-learning ===")
-    print(f"FastAPI-Server startet auf Port {port} (TICKET-B01 - nur Health-Check, "
-          f"weitere Endpunkte folgen in B04/B05/B06)")
+    print(f"FastAPI-Server startet auf Port {port} (TICKET-B01/B02 - Health-Check + "
+          f"Persistenz, weitere Endpunkte folgen in B04/B05/B06)")
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 

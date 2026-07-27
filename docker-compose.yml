@@ -90,6 +90,7 @@ services:
       - "8007:8000"  # API fuer den Live-Prototyp (TICKET-B01) - erster Service mit Port-Freigabe
     volumes:
       - ./shared/data:/app/shared_data
+      - ./shared/feedback:/app/shared_feedback  # Entscheidungs-DB (TICKET-B02), uebersteht Container-Neustarts
     networks:
       - pmplus-net
     depends_on:
