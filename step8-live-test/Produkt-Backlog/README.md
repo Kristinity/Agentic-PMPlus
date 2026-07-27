@@ -57,7 +57,7 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 | [B08](TICKET-B08-Propagation.md) | Propagation mit harter Obergrenze N | backend-dev | Hoch (sicherheitsrelevant) | B05 | – | ✅ erledigt |
 | [B09](TICKET-B09-Praeferenzpaar-Export.md) | Präferenzpaar-Export für Step-5-Retraining | backend-dev | Mittel | B02, B05 | – | ✅ erledigt |
 | [F01](TICKET-F01-Warteschlange.md) | Warteschlange mit Ampel-Status | frontend-dev | Hoch | B04 | ✅ | ✅ erledigt |
-| [F02](TICKET-F02-Eskalations-Review.md) | Eskalations-Review (PGP/LLM getrennt) | frontend-dev | Hoch | B04, B03 | ✅ | offen |
+| [F02](TICKET-F02-Eskalations-Review.md) | Eskalations-Review (PGP/LLM getrennt) | frontend-dev | Hoch | B04, B03 | ✅ | ✅ erledigt |
 | [F03](TICKET-F03-Entscheidungserfassung.md) | Entscheidungserfassung mit erzwungener Provenienz | frontend-dev | Hoch | B05, F02 (lose: B08) | ✅ | offen |
 | [F05](TICKET-F05-Audit-Trail.md) | Audit-Trail | frontend-dev | Mittel | B06 | – | ✅ erledigt |
 | [F06](TICKET-F06-Kalibrierungs-Gesundheit.md) | Kalibrierungs-Gesundheit (optional) | frontend-dev | Niedrig | B07 | – | offen |

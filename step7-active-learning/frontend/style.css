@@ -302,6 +302,123 @@ body {
   color: var(--color-muted);
 }
 
+/* TICKET-F02 – matched_rag_docs/Vertrauensstufe (Eskalations-Review).
+   Bewusst eigene, dritte Box statt an .assessment-box.pgp/.llm angehaengt -
+   die Farbcodierung (blau/violett) bleibt exklusiv PGP/LLM vorbehalten, damit
+   die getrennte Darstellung (Leitplanke 1) nicht verwaschen wird. Spannt die
+   volle Breite unter den beiden Bewertungs-Boxen. */
+.rag-box {
+  grid-column: 1 / -1;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-bg);
+}
+
+.rag-box h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+
+.rag-empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.rag-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rag-doc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.rag-doc-title {
+  font-weight: 600;
+}
+
+.rag-doc-id {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rag-vertrauen {
+  margin-left: auto;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--color-robust-bg);
+  color: var(--color-robust-text);
+  border: 1px solid var(--color-robust-border);
+  white-space: nowrap;
+}
+
+/* Fehlende/unbekannte Vertrauensstufe MUSS auffallen, nicht stillschweigend
+   leer bleiben (Systemgrenzen.md Teil C.1/C.2, Akzeptanzkriterium 3 des
+   Tickets) - Warnfarbe/-symbol, keine unauffaellige graue Neutralvariante. */
+.rag-vertrauen-unbekannt {
+  background: var(--color-truegerisch-bg);
+  color: var(--color-truegerisch-text);
+  border-color: var(--color-truegerisch-border);
+}
+
+/* TICKET-F02 – "Entscheidung erfassen": lebt bewusst AUSSERHALB von
+   .order-details (also immer sichtbar, nicht im Details-Toggle versteckt),
+   ist aber bis zum ersten Oeffnen der Details deaktiviert (siehe app.js
+   renderDecisionRow/markDetailsViewed) - erzwingt "erst beide Einschaetzungen
+   betrachten, dann erst entscheiden" (Akzeptanzkriterium 2), ohne den Button
+   fuer eine echte Aktion zu benutzen (Leitplanke 2 – Platzhalter, F03 baut die
+   eigentliche Funktionalitaet). */
+.decision-row {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--color-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.decision-btn {
+  border: 1px solid var(--color-robust-border);
+  background: var(--color-robust-bg);
+  color: var(--color-robust-text);
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decision-btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.decision-hint,
+.decision-status {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
 .app-footer {
   max-width: 880px;
   margin: 0 auto;
