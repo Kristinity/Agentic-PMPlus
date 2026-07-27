@@ -44,6 +44,37 @@ export_validated_preference(), damit propagierte (agentengenerierte) Faelle nich
 faelschlich als menschliches Trainingssignal fuer Step 5 exportiert werden (s.
 Systemgrenzen.md Teil D.1: sonst riskiert das System, sich an eigenen frueheren
 Agent-Ausgaben zu "bestaetigen" statt an echtem Experten-Feedback zu lernen).
+
+TICKET-F03 (step8-live-test/Produkt-Backlog/TICKET-F03-Entscheidungserfassung.md):
+GET /aehnliche-faelle - NEUER, rein lesender Vorschau-Endpunkt. Architektur-
+Konflikt, den dieses Ticket aufloest: POST /entscheidung berechnet die
+Propagation UND fuehrt sie im selben Aufruf aus (persistiert sofort ueber
+store.py) - es gab bisher keinen Weg, einem Menschen VOR dem verbindlichen
+Klick zu zeigen, welche/wie viele Faelle mitbetroffen waeren
+(Active-Learning-Loop-und-Frontend-Konzept.md 2.4, erster Punkt: "muss das
+Frontend sichtbar machen, wie viele Faelle von einer einzelnen Freigabe
+betroffen sind, bevor der Planer bestaetigt" - Leitplanke 2 aus
+frontend-dev.md, "Vorschlag != Ausfuehrung"). Loesung: dieser Endpunkt ruft
+GENAU dieselbe Funktion (propagation.propagate(), s. dortiger Modulkopf - rein
+lesend/side-effect-frei, ruft an keiner Stelle store.save_* auf) mit denselben
+Eingaben auf wie _propagate_decision() weiter unten, gibt das Ergebnis aber
+NUR zurueck statt es zu persistieren. Das Frontend ruft diesen Endpunkt vor
+dem finalen Bestaetigen auf und zeigt die ECHTE (nicht geratene) potenzielle
+Liste; erst ein zweiter, separater Klick loest POST /entscheidung aus.
+Bewusst NICHT Weg (b) aus der Aufgabenstellung (nur eine im UI als Schaetzung
+gekennzeichnete Anzeige ohne echten Vorschau-Call) gewaehlt, weil (a) die vom
+Ticket-Wortlaut geforderte "explizite Anzeige, wie viele/welche Faelle
+mitbetroffen sind" wörtlicher erfuellt UND technisch genauso einfach ist
+(propagation.propagate() existierte bereits side-effect-frei, es fehlte nur
+der duenne Lese-Endpunkt).
+Race-Bedingung (dokumentiert, nicht geloest): zwischen diesem Aufruf und dem
+tatsaechlichen POST /entscheidung koennte theoretisch ein anderer Planer einen
+der angezeigten Faelle bereits selbst entscheiden (already_decided_ids
+aendert sich). Das macht die Vorschau zu einer Vorschau auf Basis des
+aktuellen Standes, keiner Transaktionsgarantie - fuer einen Single-User-
+Prototyp ohne Mehrbenutzerbetrieb (siehe Produkt-Backlog "Nicht in diesem
+Backlog": Auth/Mehrbenutzer sind explizit offen) eine akzeptable, hier
+dokumentierte Vereinfachung.
 """
 
 import csv
@@ -180,24 +211,53 @@ def export_validated_preference(entscheidung):
         writer.writerow(row)
 
 
+def _compute_propagation_preview(order_id, wahl):
+    """Gemeinsame, rein lesende Berechnung fuer GET /aehnliche-faelle (TICKET-F03) UND
+    _propagate_decision() (TICKET-B08) - EINE Implementierung, damit Vorschau und
+    tatsaechliche Ausfuehrung niemals durch zwei unabhaengig gepflegte Codepfade
+    auseinanderlaufen koennen. Ruft ausschliesslich propagation.propagate() (side-effect-
+    frei, s. dortiger Modulkopf) auf, schreibt nichts. Gibt (propagiert, uebersprungen)
+    zurueck - beide leer, wenn TAU_VERGLEICH_PATH (noch) nicht existiert (B07/B04-
+    Abhaengigkeit, kein Rateversuch, fail-safe)."""
+    if not os.path.exists(TAU_VERGLEICH_PATH):
+        return [], []
+    orders_df = pd.read_csv(TAU_VERGLEICH_PATH)
+    # bereits entschiedene Faelle duerfen nicht nochmal ueberschrieben werden.
+    already_decided_ids = {e["order_id"] for e in store.list_entscheidungen()}
+    return propagation.propagate(
+        order_id=order_id,
+        wahl=wahl,
+        orders_df=orders_df,
+        already_decided_ids=already_decided_ids,
+    )
+
+
+@router.get("/aehnliche-faelle")
+def get_aehnliche_faelle(order_id: str, wahl: Literal["folgt_pgp", "folgt_llm", "eigene_reihenfolge"]):
+    """TICKET-F03: rein lesende Vorschau, OHNE etwas zu persistieren - s. Modulkopf fuer
+    die Begruendung, warum dieser Endpunkt neu ergaenzt wurde. Wird vom Frontend VOR dem
+    finalen Bestaetigen aufgerufen; erst ein zweiter Aufruf (POST /entscheidung) fuehrt
+    etwas aus. uebersprungene_faelle sind aehnliche Faelle, die wegen der Obergrenze N
+    (propagation.PROPAGATION_LIMIT_N) NICHT automatisch mituebernommen wuerden und
+    weiterhin eskaliert blieben - auch das zeigt das Frontend, damit "wie viele/welche
+    Faelle mitbetroffen sind" vollstaendig beantwortet ist, nicht nur die Teilmenge, die
+    tatsaechlich automatisch mitentschieden wuerde."""
+    propagiert, uebersprungen = _compute_propagation_preview(order_id, wahl)
+    return {
+        "order_id": order_id,
+        "wahl": wahl,
+        "propagierte_faelle": propagiert,
+        "uebersprungene_faelle": uebersprungen,
+    }
+
+
 def _propagate_decision(payload, decision_id):
     """TICKET-B08: findet aehnliche, noch offene/noch nicht entschiedene Faelle (auf
     Basis von TAU_VERGLEICH_PATH, s. propagation.py fuer das Aehnlichkeitsmass) und
     uebernimmt die Entscheidung automatisch fuer bis zu PROPAGATION_LIMIT_N davon. Faelle
     ueber der Obergrenze bleiben unangetastet eskaliert (Systemgrenzen.md Teil D.1, nicht
     optional). Gibt die Liste der tatsaechlich propagierten order_ids zurueck."""
-    if not os.path.exists(TAU_VERGLEICH_PATH):
-        return []
-    orders_df = pd.read_csv(TAU_VERGLEICH_PATH)
-    # bereits entschiedene Faelle (inkl. der soeben gespeicherten menschlichen
-    # Entscheidung selbst) duerfen nicht nochmal ueberschrieben werden.
-    already_decided_ids = {e["order_id"] for e in store.list_entscheidungen()}
-    propagiert, _uebersprungen = propagation.propagate(
-        order_id=payload.order_id,
-        wahl=payload.wahl,
-        orders_df=orders_df,
-        already_decided_ids=already_decided_ids,
-    )
+    propagiert, _uebersprungen = _compute_propagation_preview(payload.order_id, payload.wahl)
     for propagierter_order_id in propagiert:
         store.save_propagierte_entscheidung(
             order_id=propagierter_order_id,

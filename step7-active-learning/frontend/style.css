@@ -419,6 +419,248 @@ body {
   font-size: 0.82rem;
 }
 
+/* ---------------------------------------------------------------------------
+   TICKET-F03 (Entscheidungserfassung) - additiv angehaengt, F01/F02-Regeln
+   oben unveraendert gelassen. Formular lebt in .decision-form-container
+   (initial hidden, per app.js:wireDecisionForm/decision-btn-Klick sichtbar
+   gemacht), direkt unter .decision-row derselben Auftragskarte. */
+
+.decision-form-container {
+  margin-top: 0.6rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.decision-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.decision-wahl-fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.decision-wahl-fieldset legend {
+  padding: 0 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.decision-wahl-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.decision-wahl-explain {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.decision-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.decision-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.decision-begruendung-pflicht {
+  color: var(--color-review-text);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.decision-begruendung-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.decision-field textarea {
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+}
+
+.decision-form-error,
+.decision-preview-error,
+.decision-submit-error {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  background: var(--color-review-bg);
+  color: var(--color-review-text);
+  border: 1px solid var(--color-review-border);
+  font-size: 0.87rem;
+}
+
+.decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.decision-preview-btn,
+.decision-back-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* Der finale Bestaetigen-Button ist bewusst optisch von allen anderen
+   Buttons dieser Karte unterschieden (kraeftigere Farbe, eindeutiger Text
+   "... jetzt endgueltig speichern") - das ist der einzige Klick in diesem
+   gesamten Formular, der wirklich POST /entscheidung ausloest (Leitplanke 2,
+   Vorschlag != Ausfuehrung). Vor diesem Klick liegt immer ein separater
+   "Weiter"-Schritt mit echter Vorschau. */
+.decision-confirm-btn {
+  border: 1px solid var(--color-robust-border);
+  background: var(--color-robust-bg);
+  color: var(--color-robust-text);
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.decision-confirm-btn:disabled,
+.decision-preview-btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.decision-preview-panel {
+  border-top: 1px dashed var(--color-border);
+  padding-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.decision-preview-loading {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.decision-preview-explain {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.decision-preview-none,
+.decision-preview-count {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* "uebersprungene_faelle" (bleiben trotz Aehnlichkeit eskaliert, wegen der
+   harten Obergrenze N) muessen erkennbar ANDERS aussehen als die tatsaechlich
+   automatisch mituebernommenen Faelle - selbe Warnfarbe wie
+   .rag-vertrauen-unbekannt/.ampel-badge[data-ampel="truegerische_ruhe"], damit
+   die Farbsprache konsistent bleibt. */
+.decision-preview-skipped {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-truegerisch-text);
+}
+
+.decision-preview-list {
+  margin: 0;
+  padding-left: 1.3rem;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.decision-preview-skipped-list {
+  color: var(--color-truegerisch-text);
+}
+
+/* Ergebnis-Ansicht nach erfolgreichem POST /entscheidung (renderDecisionDone)
+   - ersetzt Button+Formular vollstaendig, damit fuer Jens eindeutig ist, dass
+   diese Karte erledigt ist (Aufgabenstellung Punkt 3). Nutzt dieselbe
+   "robust/gruen"-Farbe wie ampel-badge[data-ampel="robuste_uebereinstimmung"]
+   - eine gespeicherte menschliche Entscheidung ist ein positiver, erledigter
+   Zustand. */
+.decision-row-done {
+  border-top: none;
+  padding-top: 0;
+}
+
+.decision-done {
+  border: 1px solid var(--color-robust-border);
+  background: var(--color-robust-bg);
+  color: var(--color-robust-text);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  width: 100%;
+}
+
+.decision-done-summary {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+.decision-done-eigene-reihenfolge,
+.decision-done-begruendung {
+  margin: 0.4rem 0;
+  font-size: 0.88rem;
+}
+.decision-done-eigene-reihenfolge .label,
+.decision-done-begruendung .label {
+  display: block;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.1rem;
+  opacity: 0.85;
+}
+
+.decision-done-propagiert {
+  margin: 0.4rem 0;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.decision-done-hinweis {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+.decision-done-hinweis a {
+  color: inherit;
+}
+
 .app-footer {
   max-width: 880px;
   margin: 0 auto;

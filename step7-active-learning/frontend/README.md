@@ -1,12 +1,16 @@
-# step7-active-learning/frontend – Auftrags-Warteschlange + Eskalations-Review (TICKET-F01/F02)
+# step7-active-learning/frontend – Auftrags-Warteschlange + Eskalations-Review + Entscheidungserfassung (TICKET-F01/F02/F03)
 
-Erster und zweiter Bildschirm des Live-Prototyps für Jens Pirinski
+Erster, zweiter und dritter Bildschirm des Live-Prototyps für Jens Pirinski
 (Produktionsplaner, Krasser Spass GmbH, siehe `step8-live-test/Userstories.md`).
 Zeigt `GET /eskalationen` sortiert nach PGP-Rang, mit Ampel-Status in der
 Sprache aus `Konzept-README.md`. Jede Auftragskarte lässt sich aufklappen
 ("Details") und zeigt dann PGP-Einschätzung, LLM-Einschätzung und genutzte
 RAG-Dokumente (inkl. Vertrauensstufe, TICKET-F02) jeweils in eigenen,
-getrennten Abschnitten.
+getrennten Abschnitten. TICKET-F03 ergänzt die echte Entscheidungserfassung
+(PGP folgen / LLM folgen / eigene Reihenfolge, mit echtem Vorschau-Schritt vor
+dem Bestätigen und Anzeige des echten Ergebnisses danach) – mit dem MVP-Backlog
+(`step8-live-test/Produkt-Backlog/README.md`) ist damit der vollständige
+Durchlauf Warteschlange → Review → Entscheidung fertig.
 
 ## Stack-Wahl (bewusst, siehe `.claude/agents/role/frontend-dev.md`)
 
@@ -48,12 +52,24 @@ dafür gehört inhaltlich dazu, nicht in einen separaten Step).
   können/müssen. TICKET-F02 ergänzt additiv: `.rag-box`/`.rag-doc-list`/
   `.rag-vertrauen(-unbekannt)` für die RAG-Treffer-Anzeige und
   `.decision-row`/`.decision-btn` für den gate-geschützten
-  "Entscheidung erfassen"-Button.
+  "Entscheidung erfassen"-Button. TICKET-F03 ergänzt additiv das gesamte
+  Entscheidungsformular (`.decision-wizard`/`.decision-wahl-*`/
+  `.decision-preview-*`) sowie die Ergebnis-Ansicht nach dem Speichern
+  (`.decision-done*`).
 - `app.js` – Fetch gegen `GET /eskalationen`, Sortierung, Rendering, Fail-safe-
   Fehlerbehandlung. Kein externes Paket, keine Build-Pipeline. TICKET-F02
   ergänzt `renderRagDocs` (RAG-Treffer + Vertrauensstufe je Auftrag) und die
   Sichtbarkeits-/Reihenfolge-Regel für "Entscheidung erfassen"
-  (`renderDecisionRow`/`markDetailsViewed`/`detailsViewedOrderIds`).
+  (`renderDecisionRow`/`markDetailsViewed`/`detailsViewedOrderIds`). TICKET-F03
+  ersetzt den bisherigen Platzhalter durch die echte Entscheidungserfassung:
+  `validateDecisionForm`/`buildEntscheidungPayload` (Client-Validierung +
+  Payload-Aufbau, ohne `entschieden_von`-Feld), `fetchAehnlicheFaelle`/
+  `renderPreviewResult` (echter Vorschau-Schritt gegen den NEUEN,
+  rein lesenden Endpunkt `GET /aehnliche-faelle`, s. `../api.py`, VOR dem
+  Bestätigen), `postEntscheidung`/`renderDecisionDone`/`DecisionRejected`
+  (die eigentliche, irreversible Aktion inkl. Fail-safe-Fehlerbehandlung für
+  422/Netzwerkfehler) und `wireDecisionForm` (verdrahtet ein Formular:
+  Radio-Wechsel, Vorschau-Klick, Zurück, finales Bestätigen).
 
 ## Wie starten
 
@@ -115,10 +131,125 @@ löst also bewusst keine echte Aktion aus (Leitplanke 2).
 
 ## Was getestet wurde (und was nicht)
 
-**Kein Zugriff auf einen echten Browser in dieser oder der vorherigen Session**
+**Kein Zugriff auf einen echten Browser in dieser oder den vorherigen Sessions**
 – es gibt in dieser Umgebung kein Tool, das ein sichtbares/gerendertes
 Browserfenster prüfen kann. Deshalb ausdrücklich: **nicht visuell in einem
-Browser bestätigt**, weder für F01 noch für F02.
+Browser bestätigt**, weder für F01 noch für F02 noch für F03.
+
+### TICKET-F03 (Entscheidungserfassung mit erzwungener Provenienz)
+
+**Architektur-Konflikt und Lösung:** s. Modulkopf von `../api.py` und `app.js`
+sowie `step8-live-test/Produkt-Backlog/TICKET-F03-Entscheidungserfassung.md`
+Abschnitt "Umsetzung" für die ausführliche Begründung. Kurzfassung: `POST
+/entscheidung` berechnete die Propagation bisher im selben Aufruf, in dem sie
+auch persistiert wurde – kein "vorher sehen, ohne dass es passiert" möglich.
+Gelöst über einen neuen, rein lesenden Endpunkt `GET /aehnliche-faelle`
+(ruft `propagation.propagate()`, das bereits side-effect-frei war, aber
+persistiert nichts) statt einer bloß als Schätzung gekennzeichneten
+UI-Anzeige ohne echten Server-Call.
+
+1. **Docker-Images neu gebaut:** `pmplus-step5-pgp`, `pmplus-step6-calibration`,
+   `pmplus-step7-active-learning` (`docker build -t pmplus-step7-active-learning
+   -f step7-active-learning/Dockerfile step7-active-learning/`).
+2. **`pgp_priorisierung.csv`/`tau_vergleich.csv` frisch regeneriert**
+   (`pmplus-step5-pgp` mit `AS_OF_DATE=2026-01-01`, `pmplus-step6-calibration`
+   mit `MOCK_LLM_RESPONSE=1`, beide gegen `step3-erp-simulation/output_2025/`)
+   – 20 offene Aufträge, u. a. mehrere `P-KK`/`P-DV`-Aufträge mit nahen
+   Fälligkeitsdaten (Propagations-Kandidaten).
+3. **Backend-Container gestartet** (`-p 8007:8000`, inkl.
+   `./shared/feedback:/app/shared_feedback`), **echte** HTTP-Aufrufe per
+   `curl` gegen den laufenden Container:
+   - `GET /aehnliche-faelle?order_id=O-03791&wahl=eigene_reihenfolge` →
+     `{"propagierte_faelle": [], "uebersprungene_faelle": []}` (Design:
+     `eigene_reihenfolge` wird nie propagiert) UND `GET /verlauf` blieb dabei
+     nachweislich leer (0 DB-Zeilen, per Pythons `sqlite3`-Modul direkt gegen
+     `shared/feedback/entscheidungen.db` geprüft) – die Vorschau persistiert
+     wirklich nichts.
+   - `GET /aehnliche-faelle?order_id=O-03791&wahl=folgt_pgp` → 5 propagierte +
+     8 übersprungene Fälle (13 ähnliche Kandidaten insgesamt, deckt sich mit
+     dem in TICKET-B08 dokumentierten Live-Test für denselben Auftrag).
+   - **Anschließend** `POST /entscheidung` mit identischem Payload
+     (`{"order_id":"O-03791","wahl":"folgt_pgp",...}`) → `propagierte_faelle`
+     in der Response war **exakt identisch** zur zuvor angezeigten Vorschau
+     (`["O-03816","O-03837","O-03776","O-03775","O-03831"]`). Gleicher Test
+     mit einem zweiten, unabhängigen Auftrag (`O-03927`/`folgt_llm`, 4
+     propagierte Fälle) – wieder exakte Übereinstimmung Vorschau ↔ Ausführung.
+   - `GET /verlauf` nach beiden Entscheidungen zeigt 1× `mensch` + je 5×/4×
+     `agent` pro Ursprungsentscheidung, korrekt zeitlich sortiert.
+   - **422 bei fehlender Begründung** (`wahl=eigene_reihenfolge` ohne
+     `begruendung`) live gegen den echten Server ausgelöst und die reale
+     FastAPI/Pydantic-Fehlerantwort eingefangen
+     (`{"detail":[{"type":"value_error","msg":"Value error, begruendung ist
+     Pflichtfeld…"}]}`) – anschließend **mit** Begründung erfolgreich
+     gespeichert (`propagierte_faelle: []`, wie von `propagation.py` für
+     `eigene_reihenfolge` dokumentiert).
+   - Ungültige Query-Parameter an `GET /aehnliche-faelle` (unbekannter
+     `wahl`-Wert, fehlendes `order_id`) liefern jeweils `422` – bestätigt,
+     dass `fetchAehnlicheFaelle` in `app.js` solche Antworten als
+     `FetchFailure` behandelt und den Bestätigen-Button NICHT freigibt.
+4. **JS-Syntaxprüfung des echten, geänderten `app.js`** (JavaScriptCore via
+   `osascript -l JavaScript`): `new Function(source)` parst fehlerfrei.
+5. **Ausführung der echten, neuen `app.js`-Funktionen** (Original-Modul,
+   Browser-Stubs für `window`/`document`/`module`/`fetch`/`URLSearchParams` –
+   letzteres in dieser JavaScriptCore-Version nicht eingebaut, deshalb minimal
+   nachgebaut) gegen **echte, zuvor per `curl` gegen den laufenden Container
+   eingefangene** API-Antworten (`GET /eskalationen`, zwei
+   `GET /aehnliche-faelle`-Antworten, eine echte `POST /entscheidung`-Erfolgs-
+   und eine echte 422-Antwort) – **38 automatisierte Checks, alle bestanden**:
+   - `WAHL_OPTIONS` exakt die drei Backend-erlaubten Strings.
+   - `validateDecisionForm`: `folgt_pgp`/`folgt_llm` ohne Begründung OK
+     (optional), `eigene_reihenfolge` ohne Freitext-Reihenfolge blockiert
+     (zusätzliche Client-Anforderung, s. Kommentar in `app.js`),
+     `eigene_reihenfolge` mit Text aber ohne Begründung blockiert (Pflichtfeld,
+     Akzeptanzkriterium), mit beidem OK.
+   - `buildEntscheidungPayload`: **kein** `entschieden_von`-Feld im Payload
+     (Leitplanke 3/Aufgabenstellung Punkt 5), korrektes Trimmen, korrektes
+     `null` für nicht zutreffende Felder.
+   - `renderPreviewResult` gegen die echte `folgt_llm`-Antwort (4 propagiert):
+     zeigt alle 4 echten IDs und die Anzahl; gegen die echte
+     `eigene_reihenfolge`-Antwort: erklärender Text statt Liste; gegen einen
+     synthetischen Fall mit `uebersprungene_faelle`: diese werden SEPARAT und
+     sichtbar mit Eskalations-Hinweis gezeigt (Akzeptanzkriterium 3
+     vollständig, nicht nur die propagierten Fälle).
+   - `renderDecisionDone` gegen die echte `POST /entscheidung`-Erfolgsantwort:
+     zeigt die echte `decision_id` und alle echten `propagierte_faelle`-IDs;
+     HTML-Escaping von gefährlichen Zeichen in `eigene_reihenfolge` geprüft
+     (kein `<script>` im Output).
+   - `renderDecisionRow`/`renderOrderCard` end-to-end gegen einen echten
+     Auftrag aus `GET /eskalationen`: Button `disabled` vor „Details öffnen“,
+     nicht danach; Formular enthält alle drei Wahlmöglichkeiten, den
+     Pflichtfeld-Hinweistext, einen separaten Vorschau- UND
+     Bestätigen-Button (Bestätigen-Button anfangs `disabled`, erst nach
+     Vorschau freigebbar – Leitplanke 2); **kein** `entschieden_von`-Feld im
+     gerenderten Formular; bei bereits entschiedenem Auftrag kein
+     Button/Formular mehr, nur das echte Ergebnis; `assessment-box pgp`/`llm`
+     weiterhin getrennt (Leitplanke 1, Regressionscheck).
+   - `fetchAehnlicheFaelle`/`postEntscheidung` (die echten, unveränderten
+     Funktionen) gegen einen `fetch`-Stub, der auf die echten eingefangenen
+     Antworten routet: liefern die echten Werte korrekt zurück;
+     `postEntscheidung` wirft bei der echten 422-Antwort eine
+     `DecisionRejected`-Exception mit dem echten Server-Fehlertext (Fail-safe
+     – wird nicht verschluckt).
+6. **HTML-Wohlgeformtheit**/`style.css`-Klammerbalance (117/117) erneut
+   geprüft; alle `getElementById`-Aufrufe in `app.js` gegen `index.html`
+   abgeglichen (weiterhin nur `retry-btn` dynamisch, wie seit F01).
+
+**Nicht geprüft** (weil ohne echten Browser nicht möglich): tatsächliches
+CSS-Rendering/Layout des neuen Entscheidungsformulars, echtes Klickverhalten
+im DOM (insbesondere Radio-Wechsel → Freitextfeld ein-/ausblenden, das
+Sperren der Felder nach erfolgreicher Vorschau, der komplette
+Zwei-Klick-Ablauf im Browser), Verhalten bei sehr kleinen Bildschirmbreiten,
+Screenreader-Verhalten der neuen `role="alert"`/`aria-*`-Attribute. Ebenfalls
+nicht geprüft: eine echte Race Condition zwischen Vorschau und Bestätigen
+(zwei gleichzeitige Planer) – dafür gibt es keinen Mehrbenutzer-Testaufbau in
+dieser Umgebung; das Risiko ist im Code-Kommentar zu `GET /aehnliche-faelle`
+in `api.py` dokumentiert. Sollte vor einer echten Demo mit Jens durch einen
+kurzen manuellen Check in einem echten Browser geschlossen werden.
+
+Erzeugte Test-CSVs (`pgp_priorisierung.csv`, `tau_vergleich.csv`,
+`validated_preferences.csv` in `step3-erp-simulation/output_2025/`) sowie
+`shared/feedback/entscheidungen.db` und der Test-Container wurden nach dem
+Test wieder entfernt.
 
 ### TICKET-F02 (matched_rag_docs + "Entscheidung erfassen"-Gate)
 
