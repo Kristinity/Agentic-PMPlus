@@ -20,7 +20,8 @@ import pandas as pd
 import streamlit as st
 
 from pipeline import (missing_baseline_files, build_run_dir, run_pipeline,
-                       validate_new_orders, order_template_csv_bytes)
+                       validate_new_orders, order_template_csv_bytes,
+                       empty_new_orders_editor_df, drop_empty_rows, VALID_PRODUCT_IDS)
 
 STEP5_DIR = os.environ.get("STEP5_DIR", "/app/step5-pgp")
 STEP6_DIR = os.environ.get("STEP6_DIR", "/app/step6-calibration")
@@ -56,25 +57,51 @@ if missing_baseline:
     )
     st.stop()
 
-st.download_button(
-    "📄 Auftragstemplate herunterladen",
-    data=order_template_csv_bytes(),
-    file_name="auftragstemplate.csv",
-    mime="text/csv",
+st.subheader("Neue Aufträge")
+st.caption(
+    "Zeilen unten über das **+** hinzufügen, über das 🗑️-Symbol am Zeilenende "
+    "entfernen – beliebig viele Aufträge auf einmal, keine Datei nötig. "
+    "**order_id** wird automatisch vergeben."
 )
-with st.expander("Hinweise zum Ausfüllen"):
-    st.markdown(
-        "- **order_id** leer lassen – wird automatisch vergeben.\n"
-        "- **customer**: z. B. `Becksbrauerei` oder ein anderer Kundenname.\n"
-        "- **product_id**: nur `P-KK` (Kronkorken) oder `P-DV` (Drehverschluss).\n"
-        "- **variant**: optional, leer lassen ist ok.\n"
-        "- **order_date** / **due_date**: Format `JJJJ-MM-TT`.\n"
-        "- **is_rush**: `True`/`False`, optional (Default `False`).\n"
-        "- **priority**: `normal`/`hoch`, optional (Default `normal`).\n"
-        "- **quantity**: Stückzahl, Pflichtfeld."
-    )
 
-uploaded_orders = st.file_uploader("Neue Aufträge hochladen (nach Vorlage)", type="csv")
+if "new_orders_editor" not in st.session_state:
+    st.session_state.new_orders_editor = empty_new_orders_editor_df()
+
+edited_orders = st.data_editor(
+    st.session_state.new_orders_editor,
+    num_rows="dynamic",
+    use_container_width=True,
+    key="new_orders_data_editor",
+    column_config={
+        "customer": st.column_config.TextColumn("customer", required=True,
+                                                  help="z. B. Becksbrauerei"),
+        "product_id": st.column_config.SelectboxColumn(
+            "product_id", options=VALID_PRODUCT_IDS, required=True),
+        "variant": st.column_config.TextColumn("variant", help="optional"),
+        "order_date": st.column_config.DateColumn("order_date", required=True,
+                                                    format="YYYY-MM-DD"),
+        "due_date": st.column_config.DateColumn("due_date", required=True,
+                                                  format="YYYY-MM-DD"),
+        "is_rush": st.column_config.CheckboxColumn("is_rush", default=False),
+        "priority": st.column_config.SelectboxColumn(
+            "priority", options=["normal", "hoch"], default="normal"),
+        "quantity": st.column_config.NumberColumn("quantity", required=True,
+                                                    min_value=1, step=1),
+    },
+)
+
+with st.expander("Alternativ: CSV-Datei hochladen (z. B. viele Aufträge auf einmal)"):
+    st.download_button(
+        "📄 Auftragstemplate herunterladen",
+        data=order_template_csv_bytes(),
+        file_name="auftragstemplate.csv",
+        mime="text/csv",
+    )
+    uploaded_orders = st.file_uploader("CSV nach Vorlage hochladen", type="csv")
+    st.caption(
+        "Wenn hier eine Datei hochgeladen wird, wird sie verwendet – die Tabelle "
+        "oben wird in diesem Fall ignoriert."
+    )
 
 as_of = st.date_input(
     "Auswertungsdatum", value=date.today(),
@@ -92,17 +119,22 @@ if not api_key_present:
     st.caption("⚠️ Kein ANTHROPIC_API_KEY gefunden – Ergebnis läuft im Mock-Modus "
                "(τ nicht aussagekräftig, siehe RUNBOOK.md).")
 
+has_table_rows = len(drop_empty_rows(edited_orders)) > 0
 run_clicked = st.button("Priorisierung berechnen", type="primary",
-                         disabled=(uploaded_orders is None))
-if uploaded_orders is None:
-    st.info("Bitte zuerst neue Aufträge nach Vorlage hochladen.")
+                         disabled=not (has_table_rows or uploaded_orders is not None))
+if not (has_table_rows or uploaded_orders is not None):
+    st.info("Bitte mindestens einen neuen Auftrag in der Tabelle eintragen oder eine "
+            "CSV-Datei hochladen.")
 
 if run_clicked:
-    try:
-        new_orders_df = pd.read_csv(uploaded_orders)
-    except Exception as exc:  # noqa: BLE001 - CSV-Parsing-Fehler dem Nutzer zeigen statt Crash
-        st.error(f"Datei konnte nicht gelesen werden: {exc}")
-        st.stop()
+    if uploaded_orders is not None:
+        try:
+            new_orders_df = pd.read_csv(uploaded_orders)
+        except Exception as exc:  # noqa: BLE001 - CSV-Parsing-Fehler dem Nutzer zeigen statt Crash
+            st.error(f"Datei konnte nicht gelesen werden: {exc}")
+            st.stop()
+    else:
+        new_orders_df = drop_empty_rows(edited_orders)
 
     errors = validate_new_orders(new_orders_df)
     if errors:

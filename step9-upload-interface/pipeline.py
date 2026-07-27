@@ -64,6 +64,24 @@ def order_template_csv_bytes():
     return buf.getvalue().encode("utf-8")
 
 
+def empty_new_orders_editor_df():
+    """Startzustand fuer die In-App-Tabelle (st.data_editor) - 0 Zeilen, aber
+    mit den richtigen Spalten, damit column_config greift. Ersetzt den
+    Download-Bearbeiten-Hochladen-Umweg ueber eine externe CSV-Datei."""
+    cols = [c for c in ORDER_TEMPLATE_COLUMNS if c != "order_id"]
+    return pd.DataFrame(columns=cols)
+
+
+def drop_empty_rows(df):
+    """Entfernt Zeilen, die in allen Pflichtspalten leer sind - passiert z. B.
+    wenn im data_editor eine Zeile per '+' angelegt, aber nicht ausgefuellt
+    wurde."""
+    present_required = [c for c in NEW_ORDER_REQUIRED_COLUMNS if c in df.columns]
+    if not present_required:
+        return df
+    return df[~df[present_required].isna().all(axis=1)].reset_index(drop=True)
+
+
 def validate_new_orders(df):
     """Prueft Pflichtspalten und product_id-Werte. Gibt eine Liste
     verstaendlicher Fehlermeldungen zurueck (leer = valide)."""
@@ -106,6 +124,14 @@ def prepare_new_orders(df, existing_order_ids):
     df["variant"] = df.apply(
         lambda r: r["variant"] if pd.notna(r["variant"]) and str(r["variant"]).strip()
         else f"{r['product_id']}-V1", axis=1)
+
+    # order_date/due_date kommen aus dem data_editor als datetime.date-Objekte,
+    # aus einem CSV-Upload dagegen als Strings - beide auf dasselbe
+    # JJJJ-MM-TT-Format normalisieren, damit die kombinierte orders.csv
+    # konsistent bleibt (sonst uebernimmt to_csv() im Zweifel str()).
+    for col in ["order_date", "due_date"]:
+        df[col] = pd.to_datetime(df[col]).dt.strftime("%Y-%m-%d")
+    df["quantity"] = df["quantity"].astype(int)
 
     return df[ORDER_TEMPLATE_COLUMNS], new_ids
 
