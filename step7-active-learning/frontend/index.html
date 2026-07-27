@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auftrags-Warteschlange – Agentic-PMPlus</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Auftrags-Warteschlange</h1>
+    <p class="app-subline">
+      Welche Aufträge brauchen jetzt Ihre Entscheidung – und warum?
+    </p>
+  </header>
+
+  <main id="app">
+    <section class="toolbar" aria-label="Filter">
+      <label class="filter-toggle">
+        <input type="checkbox" id="filter-attention" />
+        Nur Fälle mit Handlungsbedarf zeigen (Trügerische Ruhe / Klarer Fall für
+        Experten-Review / Status unbekannt)
+      </label>
+      <button id="reload-btn" type="button" class="reload-btn">Neu laden</button>
+    </section>
+
+    <div id="status-region" aria-live="polite">
+      <p id="loading-message" class="loading">Warteschlange wird geladen …</p>
+    </div>
+
+    <ol id="queue-list" class="queue-list" hidden></ol>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      Ampel-Sprache übernommen aus <code>Konzept-README.md</code>
+      ("Robuste Übereinstimmung" / "Trügerische Ruhe" / "Klarer Fall für
+      Experten-Review"). PGP- und LLM-Einschätzung werden hier bewusst getrennt
+      gezeigt und nie zu einer Zahl verschmolzen – das ist der ganze Sinn der
+      unabhängigen zweiten Meinung.
+    </p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
