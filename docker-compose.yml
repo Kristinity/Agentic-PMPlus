@@ -102,6 +102,23 @@ services:
     depends_on:
       - step6-calibration
 
+  frontend:
+    build: ./frontend
+    container_name: pmplus-frontend
+    ports:
+      - "8080:8080"
+    environment:
+      # Container-zu-Container-Adressierung im Compose-Netz (pmplus-net) - Service-Name
+      # "step7-active-learning" ist dort per Docker-DNS aufloesbar. Kein Zugriff auf
+      # shared/data oder rag_documents noetig: das Frontend spricht ausschliesslich ueber
+      # /api/* (server.py-Proxy) mit dem Backend, liest nie CSVs/RAG-Dateien selbst
+      # (Scope-Disziplin frontend-dev.md: keine eigene Datenaggregation).
+      - BACKEND_URL=http://step7-active-learning:8000
+    networks:
+      - pmplus-net
+    depends_on:
+      - step7-active-learning
+
   step8-live-test:
     build: ./step8-live-test
     env_file:
