@@ -44,7 +44,7 @@ PGP_RANKING_PATH = os.environ.get(
 )
 ORDERS_PATH = os.environ.get("ORDERS_PATH", os.path.join("shared_data", "orders.csv"))
 LLM_CONTEXT_DIR = os.environ.get("LLM_CONTEXT_DIR", "llm_context")
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
 OUTPUT_PATH = os.environ.get(
     "OUTPUT_PATH", os.path.join("shared_data", "tau_vergleich.csv")
 )
@@ -67,7 +67,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt exakt in diesem Format, kein Text
 oder danach:
 {
   "ranking": ["<order_id>", "..."],
-  "begruendung": {"<order_id>": "ein bis zwei Saetze"},
+  "begruendung": {"<order_id>": "max. ein kurzer Satz"},
   "warnungen": ["..."]
 }
 "ranking" enthaelt ALLE uebergebenen order_ids, absteigend nach Prioritaet (Platz 1 zuerst).
@@ -140,11 +140,13 @@ def call_llm_ranking(context_text, open_orders):
     client = Anthropic()
     message = client.messages.create(
         model=ANTHROPIC_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": build_user_message(context_text, open_orders)}],
     )
     text = "".join(block.text for block in message.content if block.type == "text")
+    if os.environ.get("DEBUG_LLM_RESPONSE"):
+        print(f"DEBUG stop_reason={message.stop_reason} content={message.content}")
     return parse_llm_response(text)
 
 
