@@ -86,6 +86,8 @@ services:
     env_file:
       - .env
     container_name: pmplus-step7
+    ports:
+      - "8007:8000"  # API fuer den Live-Prototyp (TICKET-B01) - erster Service mit Port-Freigabe
     volumes:
       - ./shared/data:/app/shared_data
     networks:

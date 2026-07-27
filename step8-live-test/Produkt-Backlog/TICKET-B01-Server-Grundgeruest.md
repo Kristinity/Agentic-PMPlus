@@ -1,5 +1,6 @@
 # TICKET-B01 – FastAPI-Server-Grundgerüst
 
+**Status:** ✅ Erledigt (2026-07-27)
 **Rolle:** backend-dev
 **Priorität:** Hoch
 **Abhängigkeiten:** keine
@@ -23,7 +24,8 @@ ist inhärent interaktiv, kein Batch-Job wie Steps 3–6.
 ## Definition of Done
 - Allgemeine DoD aus `README.md` dieses Ordners erfüllt.
 - Container startet via `docker run`, `GET /` (oder `/health`) liefert 200 – verifiziert
-  per Docker-Testlauf.
+  per Docker-Testlauf. ✅ Beide Endpunkte liefern 200 (getestet gegen
+  `pmplus-step7-active-learning`, Port 8007).
 
 ## Folgetickets
 [B02](TICKET-B02-SQLite-Persistenz.md), [B03](TICKET-B03-RAG-Metadaten-Aufloesung.md),
