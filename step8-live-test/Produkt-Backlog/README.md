@@ -52,7 +52,7 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 | [B03](TICKET-B03-RAG-Metadaten-Aufloesung.md) | RAG-Metadaten-Auflösung (Vertrauensstufe) | backend-dev | Mittel | B01 | ✅ | ✅ erledigt |
 | [B04](TICKET-B04-GET-Eskalationen.md) | `GET /eskalationen` | backend-dev | Hoch | B01, B03 (weich: B07) | ✅ | ✅ erledigt |
 | [B05](TICKET-B05-POST-Entscheidung.md) | `POST /entscheidung` | backend-dev | Hoch | B01, B02 | ✅ | ✅ erledigt |
-| [B06](TICKET-B06-GET-Verlauf.md) | `GET /verlauf` | backend-dev | Mittel | B02 | – | offen |
+| [B06](TICKET-B06-GET-Verlauf.md) | `GET /verlauf` | backend-dev | Mittel | B02 | – | ✅ erledigt |
 | [B07](TICKET-B07-Kalibrierung.md) | τ₀/σ₀-Kalibrierung (Risk-Coverage) | backend-dev | Hoch (fachlich Blocker) | – | – | ✅ erledigt (Bootstrap-Variante, `step6-calibration/main.py`) |
 | [B08](TICKET-B08-Propagation.md) | Propagation mit harter Obergrenze N | backend-dev | Hoch (sicherheitsrelevant) | B05 | – | offen |
 | [B09](TICKET-B09-Praeferenzpaar-Export.md) | Präferenzpaar-Export für Step-5-Retraining | backend-dev | Mittel | B02, B05 | – | offen |

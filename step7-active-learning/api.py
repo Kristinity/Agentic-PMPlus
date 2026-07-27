@@ -124,3 +124,19 @@ def post_entscheidung(payload: EntscheidungRequest):
         # Platzhalter bis TICKET-B08 existiert (Propagation mit Obergrenze N).
         "propagierte_faelle": [],
     }
+
+
+@router.get("/verlauf")
+def get_verlauf(order_id: Optional[str] = None, von: Optional[str] = None, bis: Optional[str] = None):
+    """TICKET-B06: chronologischer Audit-Trail (store.list_entscheidungen() liefert
+    bereits ASC nach zeitstempel sortiert). von/bis sind ISO-8601-Zeitstempel-Praefixe
+    (z. B. "2026-07-27") - String-Vergleich reicht, da ISO-8601 lexikographisch
+    korrekt sortiert. entschieden_von ist in jedem Eintrag bereits enthalten
+    (aktuell immer "mensch", s. store.py) - Mensch-/Agent-Provenienz damit pro
+    Eintrag erkennbar, ohne zusaetzliche Logik hier."""
+    entscheidungen = store.list_entscheidungen(order_id=order_id)
+    if von:
+        entscheidungen = [e for e in entscheidungen if e["zeitstempel"] >= von]
+    if bis:
+        entscheidungen = [e for e in entscheidungen if e["zeitstempel"] <= bis]
+    return {"verlauf": entscheidungen}
