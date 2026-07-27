@@ -51,7 +51,12 @@ def resolve_matched_docs(matched_rag_docs, metadata=None):
     werden (Fail-safe statt Fail-open, s. o. genannte Dokumente)."""
     if metadata is None:
         metadata = load_rag_metadata()
-    if not matched_rag_docs:
+    # NaN (z. B. eine leere Zelle, wenn matched_rag_docs per pandas aus einer CSV
+    # gelesen wurde) ist truthy in Python ("not float('nan')" == False) und wurde
+    # sonst zum String "nan" -> Fake-Doc-ID "nan" in der Response. Gefunden beim
+    # Bau von TICKET-F01. NaN ist der einzige Wert, der ungleich sich selbst ist.
+    is_nan = isinstance(matched_rag_docs, float) and matched_rag_docs != matched_rag_docs
+    if not matched_rag_docs or is_nan:
         return []
     ids = [d for d in str(matched_rag_docs).split(";") if d]
     return [
