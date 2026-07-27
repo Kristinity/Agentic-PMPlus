@@ -49,7 +49,7 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 |---|---|---|---|---|---|---|
 | [B01](TICKET-B01-Server-Grundgeruest.md) | FastAPI-Server-Grundgerüst | backend-dev | Hoch | – | ✅ | ✅ erledigt |
 | [B02](TICKET-B02-SQLite-Persistenz.md) | SQLite-Persistenz für Entscheidungen | backend-dev | Hoch | B01 | ✅ | ✅ erledigt |
-| [B03](TICKET-B03-RAG-Metadaten-Aufloesung.md) | RAG-Metadaten-Auflösung (Vertrauensstufe) | backend-dev | Mittel | B01 | ✅ | offen |
+| [B03](TICKET-B03-RAG-Metadaten-Aufloesung.md) | RAG-Metadaten-Auflösung (Vertrauensstufe) | backend-dev | Mittel | B01 | ✅ | ✅ erledigt |
 | [B04](TICKET-B04-GET-Eskalationen.md) | `GET /eskalationen` | backend-dev | Hoch | B01, B03 (weich: B07) | ✅ | offen |
 | [B05](TICKET-B05-POST-Entscheidung.md) | `POST /entscheidung` | backend-dev | Hoch | B01, B02 | ✅ | offen |
 | [B06](TICKET-B06-GET-Verlauf.md) | `GET /verlauf` | backend-dev | Mittel | B02 | – | offen |

@@ -1,5 +1,6 @@
 # TICKET-B03 – RAG-Metadaten-Auflösung (Vertrauensstufe)
 
+**Status:** ✅ Erledigt (2026-07-27)
 **Rolle:** backend-dev
 **Priorität:** Mittel
 **Abhängigkeiten:** [B01](TICKET-B01-Server-Grundgeruest.md)
@@ -21,7 +22,9 @@ API liest `rag_documents/*.md` direkt (analog zu `step5-pgp/main.py`/
 ## Definition of Done
 - Allgemeine DoD aus `README.md` dieses Ordners erfüllt.
 - Unit-Test oder manueller Testlauf mit den drei echten Dokumenten aus
-  `step4-context-engineering/rag_documents/`.
+  `step4-context-engineering/rag_documents/`. ✅ Alle drei korrekt aufgelöst
+  (`intern-verifiziert`), plus Randfälle geprüft: leer/`None` → `[]`, unbekannte
+  ID → fail-safe mit `vertrauensstufe: None` statt stillschweigend zu verschwinden.
 
 ## Folgetickets
 [B04](TICKET-B04-GET-Eskalationen.md), [F02](TICKET-F02-Eskalations-Review.md)

@@ -91,6 +91,8 @@ services:
     volumes:
       - ./shared/data:/app/shared_data
       - ./shared/feedback:/app/shared_feedback  # Entscheidungs-DB (TICKET-B02), uebersteht Container-Neustarts
+      # RAG-Metadaten-Aufloesung (TICKET-B03), read-only wie bei step5/step6.
+      - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
     networks:
       - pmplus-net
     depends_on:
