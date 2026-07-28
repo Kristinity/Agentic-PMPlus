@@ -220,6 +220,14 @@ def run_pipeline(run_dir, as_of_date_iso, mock_llm, step5_dir, step6_dir,
     env6["ORDERS_PATH"] = os.path.join(run_dir, "orders.csv")
     env6["LLM_CONTEXT_DIR"] = os.path.join(step6_dir, "llm_context")
     env6["OUTPUT_PATH"] = os.path.join(run_dir, "tau_vergleich.csv")
+    # TICKET-F06 (step6-calibration/main.py:append_kalibrierung_verlauf): ohne
+    # diese Ueberschreibung faellt main.py auf den relativen Default
+    # "shared_data/kalibrierung_verlauf.csv" zurueck, der hier relativ zu
+    # step6_dir aufgeloest wuerde - step6-calibration ist in docker-compose.yml
+    # aber read-only (":ro") gemountet, das Schreiben wuerde also fehlschlagen
+    # (main.py faengt das inzwischen ab und laeuft trotzdem weiter, aber ohne
+    # diese Zeile gaebe es fuer step9-Laeufe nie einen echten F06-Verlaufseintrag).
+    env6["KALIBRIERUNG_VERLAUF_PATH"] = os.path.join(run_dir, "kalibrierung_verlauf.csv")
     env6["MOCK_LLM_RESPONSE"] = "1" if mock_llm else "0"
     if target_escalation_rate is not None:
         env6["TARGET_ESCALATION_RATE"] = str(target_escalation_rate)

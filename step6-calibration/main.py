@@ -346,9 +346,18 @@ def main():
     # TICKET-F06: dieser Lauf wird zusaetzlich an die Kalibrierungs-Verlaufs-CSV
     # angehaengt, damit GET /kalibrierung (step7-active-learning/api.py) eine echte
     # Eskalationsrate/Anteil-"truegerische Ruhe" ueber Zeit zeigen kann statt nur den
-    # aktuellen Snapshot aus OUTPUT_PATH.
-    append_kalibrierung_verlauf(tau0, sigma0, TARGET_ESCALATION_RATE, counts, len(result))
-    print(f"-> {KALIBRIERUNG_VERLAUF_PATH} (TICKET-F06, ein Lauf angehaengt)")
+    # aktuellen Snapshot aus OUTPUT_PATH. Bewusst NICHT fatal, wenn das schreibt fehlschlaegt
+    # (z. B. step9-upload-interface/pipeline.py fuehrt dieses main.py mit cwd im
+    # read-only gemounteten step6-calibration/ aus und setzt KALIBRIERUNG_VERLAUF_PATH
+    # nicht - der relative Default wuerde dort in ein read-only Verzeichnis schreiben
+    # wollen) - das eigentliche, fuer step7/step9 entscheidende Ergebnis (OUTPUT_PATH,
+    # oben bereits erfolgreich geschrieben) darf an einem fehlschlagenden
+    # Zusatz-Audit-Log (F06) nicht scheitern.
+    try:
+        append_kalibrierung_verlauf(tau0, sigma0, TARGET_ESCALATION_RATE, counts, len(result))
+        print(f"-> {KALIBRIERUNG_VERLAUF_PATH} (TICKET-F06, ein Lauf angehaengt)")
+    except OSError as exc:
+        print(f"!!! TICKET-F06-Verlaufsschreibung uebersprungen (nicht fatal): {exc}")
 
 
 if __name__ == "__main__":

@@ -42,6 +42,25 @@ von LLM- auf GP-Unsicherheit ist unbelegt – im Footer der neuen Seite explizit
 gegengezeichnet, damit die Kennzahlen nicht als belastbare Kalibrierung
 missverstanden werden.
 
+## Nachtrag (2026-07-28): Regression für step9 gefunden und behoben
+Beim Prüfen von `step9-upload-interface` fiel auf, dass `append_kalibrierung_verlauf`
+dort den gesamten Kalibrierungslauf zum Absturz brachte: `pipeline.py` führt
+`step6-calibration/main.py` mit `cwd` im **read-only** gemounteten
+`step6-calibration/`-Verzeichnis aus (`docker-compose.yml`), ohne
+`KALIBRIERUNG_VERLAUF_PATH` zu setzen – der relative Default versuchte dort zu
+schreiben und scheiterte mit `OSError: Read-only file system`, wodurch
+`tau_vergleich.csv` (bereits erfolgreich geschrieben) fälschlich als
+Gesamt-Fehlschlag gemeldet wurde. Behoben durch zwei Änderungen: (1)
+`step6-calibration/main.py` fängt einen fehlschlagenden Verlaufs-Schreibversuch
+jetzt als nicht-fatalen `OSError` ab (das Zusatz-Audit-Log darf das eigentliche
+Kalibrierungsergebnis nie zum Scheitern bringen); (2)
+`step9-upload-interface/pipeline.py` setzt `KALIBRIERUNG_VERLAUF_PATH` jetzt
+explizit in das beschreibbare `run_dir`, damit step9-Läufe echte F06-Einträge
+erzeugen statt die Schreibung nur überspringen zu müssen. Verifiziert per
+echtem Docker-Test gegen die exakten `docker-compose.yml`-Mounts (read-only
+`step6-calibration/`): vorher `OSError`/Absturz, danach `result.ok == True`
+inkl. korrekt geschriebener `kalibrierung_verlauf.csv` im `run_dir`.
+
 ## Definition of Done
 - Allgemeine DoD aus `README.md` dieses Ordners erfüllt. ✅ Docker-Images
   (`pmplus-step6-calibration`, `pmplus-step7-active-learning`) neu gebaut; zwei echte
