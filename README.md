@@ -86,8 +86,9 @@ Echt-Modus für Step 6 → bekannte Grenzen): **[RUNBOOK.md](RUNBOOK.md)**.
 - **Recherche/Analyse statt Code:** Step 1 (`Benchmark-Analyse.md`, `Instructions.md`)
   und Step 2 (`Systemgrenzen.md`) haben ihr eigentliches Ergebnis als Markdown-Dokument,
   `main.py` bleibt dort bewusst Platzhalter.
-- **Noch offen (Post-MVP):** F06 (Kalibrierungs-Gesundheit), F07
-  (Kosten-Transparenz) – siehe `step8-live-test/Produkt-Backlog/README.md`.
-  Step 8 (`step8-live-test/main.py`) bleibt bewusst Platzhalter; sein
-  eigentlicher Inhalt sind die Userstories/das Produkt-Backlog in
-  `step8-live-test/`.
+- **Vollständiges Produkt-Backlog abgeschlossen:** alle 15 Tickets (B01–B09,
+  F01–F03, F05–F07) sind ✅ erledigt, inkl. der beiden zuletzt optionalen
+  Post-MVP-Tickets F06 (Kalibrierungs-Gesundheit) und F07 (Kosten-Transparenz)
+  – siehe `step8-live-test/Produkt-Backlog/README.md`. Step 8
+  (`step8-live-test/main.py`) bleibt bewusst Platzhalter; sein eigentlicher
+  Inhalt sind die Userstories/das Produkt-Backlog in `step8-live-test/`.

@@ -70,6 +70,32 @@ dafür gehört inhaltlich dazu, nicht in einen separaten Step).
   (die eigentliche, irreversible Aktion inkl. Fail-safe-Fehlerbehandlung für
   422/Netzwerkfehler) und `wireDecisionForm` (verdrahtet ein Formular:
   Radio-Wechsel, Vorschau-Klick, Zurück, finales Bestätigen).
+- `kalibrierung.html`/`kalibrierung.js` (TICKET-F06) – **eigene, separate** Seite
+  für die Kalibrierungs-Gesundheit (aktuelle τ₀/σ₀, Eskalationsrate, Anteil
+  "Trügerische Ruhe" über die Historie der Kalibrierungsläufe aus
+  `GET /kalibrierung`). Bewusst **nicht** von `index.html`/`verlauf.html` aus
+  verlinkt (nur umgekehrt, ein Link zurück zur Warteschlange) – Zielgruppe ist die
+  Person, die Step 6/7 betreut, siehe `Active-Learning-Loop-und-Frontend-
+  Konzept.md` Abschnitt 2.3.5 ("Sinnvoll als separate Rolle/Ansicht statt im
+  Hauptbildschirm, um die Kernzielgruppe nicht zu überladen"). Erreichbar über
+  die direkte URL `kalibrierung.html`. `style.css` ergänzt additiv
+  `.kalibrierung-aktuell`/`.kalibrierung-metric*`/`.kalibrierung-table*`.
+  Backend-Gegenstück: `step6-calibration/main.py:append_kalibrierung_verlauf`
+  hängt pro tatsächlich gelaufenem Kalibrierungslauf eine Zeile an
+  `shared_data/kalibrierung_verlauf.csv` an (neu, sonst gäbe es keine echte
+  "Eskalationsrate über Zeit", nur eine überschriebene Momentaufnahme); `../api.py`
+  liefert das darüber unverändert als `GET /kalibrierung`.
+- `verlauf.js` (TICKET-F07-Zusatz) – ergänzt additiv einen
+  Kosten-Transparenz-Kasten (`renderKostenBox`/`renderKostenBoxError`/
+  `fetchKalibrierung`/`loadKosten`) oberhalb der Verlaufsliste in `verlauf.html`,
+  der `GET /kalibrierung` (TICKET-F06, kein neuer Endpunkt nötig) unabhängig vom
+  eigentlichen Verlaufs-Fetch lädt und zeigt, dass keine Planer-Entscheidung je
+  einen LLM-Call auslöst. Siehe Modulkopf von `verlauf.js` für die dokumentierte,
+  bewusste Abweichung von der ursprünglichen Ticket-Formulierung ("nur für
+  Eskalationsfälle angefragt") – trifft auf die aktuelle step6-Architektur nicht
+  zu (ein einziger Batch-Call für alle offenen Aufträge, da der Eskalationsstatus
+  erst aus diesem Ranking abgeleitet wird), daher die inhaltlich korrigierte,
+  aber ebenso wirtschaftlich relevante Aussage.
 
 ## Wie starten
 
@@ -134,7 +160,105 @@ löst also bewusst keine echte Aktion aus (Leitplanke 2).
 **Kein Zugriff auf einen echten Browser in dieser oder den vorherigen Sessions**
 – es gibt in dieser Umgebung kein Tool, das ein sichtbares/gerendertes
 Browserfenster prüfen kann. Deshalb ausdrücklich: **nicht visuell in einem
-Browser bestätigt**, weder für F01 noch für F02 noch für F03.
+Browser bestätigt**, weder für F01 noch für F02 noch für F03 noch für F06 noch
+für F07.
+
+### TICKET-F07 (Kosten-Transparenz-Hinweis)
+
+**Wichtige, dokumentierte Abweichung von der Ticket-Formulierung:** s. Modulkopf
+von `verlauf.js` und `TICKET-F07-Kosten-Transparenz.md` Abschnitt "Umsetzung" für
+die ausführliche Begründung. Kurzfassung: die AC-Formulierung ("LLM-Ranking nur
+für Eskalationsfälle angefragt") trifft auf die aktuelle Architektur nicht zu –
+`step6-calibration/main.py` ruft das LLM einmal pro Lauf für ALLE offenen
+Aufträge auf, weil der Eskalationsstatus erst aus diesem Ranking abgeleitet wird
+(Henne-Ei-Problem). Der Kosten-Kasten zeigt stattdessen die tatsächlich
+zutreffende Eigenschaft (keine Planer-Entscheidung löst je einen LLM-Call aus)
+und benennt die Abweichung explizit im UI-Text, statt sie zu verschweigen.
+
+1. **Kein neuer Backend-Endpunkt nötig** – `GET /kalibrierung` (TICKET-F06)
+   existierte bereits. Ein echter Kalibrierungslauf (`MOCK_LLM_RESPONSE=1`) wurde
+   gegen `shared/data` ausgeführt, der Backend-Container gestartet und
+   `GET /kalibrierung` live per `curl` abgefragt (`n_auftraege: 20`, echter
+   Zeitstempel) – diese echte Antwort war Grundlage aller folgenden Tests.
+2. **JS-Syntaxprüfung des echten, geänderten `verlauf.js`** (JavaScriptCore via
+   `osascript -l JavaScript`): `new Function(source)` parst fehlerfrei.
+3. **Ausführung der echten, neuen `verlauf.js`-Funktionen** (Original-Modul,
+   Browser-Stubs für `window`/`document`/`module`/`URLSearchParams`) gegen die
+   echte `GET /kalibrierung`-Antwort – **8 automatisierte Checks, alle
+   bestanden**:
+   - `formatZeitpunktKurz` liefert einen lesbaren, nicht-leeren String für den
+     echten Zeitstempel.
+   - `renderKostenBox` gegen den echten `aktuell`-Wert zeigt den echten
+     `n_auftraege`-Wert (20), die Formulierung "gebündelte(r) API-Call", den
+     Satz "löst einen LLM-Aufruf aus" (keine Entscheidung löst einen Call aus)
+     und die explizite Einschränkung "nicht nur die später als Eskalation
+     markierten Fälle" (die dokumentierte Abweichung selbst).
+   - `renderKostenBox(null)` (kein Lauf vorhanden) zeigt einen expliziten
+     "Noch kein protokollierter Kalibrierungslauf"-Zustand statt stillschweigend
+     Nullwerte/Fake-Zahlen anzuzeigen (Fail-safe, Leitplanke 5).
+   - `renderKostenBoxError` zeigt den echten Fehlertext sichtbar mit
+     `role="alert"`, statt den Fehler zu verschlucken.
+4. **HTML-Wohlgeformtheit** von `verlauf.html` (Python `html.parser`) erneut
+   geprüft, alle `getElementById`-Aufrufe in `verlauf.js` gegen `verlauf.html`
+   abgeglichen (`retry-btn` fehlt dort weiterhin absichtlich, dynamisch erzeugt).
+   `style.css`-Klammerbalance (134/134) geprüft.
+5. **Regressionscheck:** `GET /verlauf` (leer, da keine Entscheidungen in dieser
+   Test-DB) und der bestehende Audit-Trail-Ladepfad blieben unverändert
+   funktionsfähig – der neue Kosten-Kasten lädt unabhängig und blockiert die
+   Verlaufsanzeige nicht.
+
+**Nicht geprüft** (weil ohne echten Browser nicht möglich, wie bei F01–F06):
+tatsächliches CSS-Rendering/Layout des neuen Kosten-Kastens, Screenreader-
+Verhalten des neuen `role="alert"`.
+
+Erzeugte Test-Artefakte (`shared/data/kalibrierung_verlauf.csv`, der
+Test-Container `pmplus-step7-test`) wurden nach dem Test wieder entfernt.
+
+### TICKET-F06 (Kalibrierungs-Gesundheit)
+
+1. **Docker-Images neu gebaut:** `pmplus-step6-calibration` (enthält den neuen
+   `append_kalibrierung_verlauf`-Code) und `pmplus-step7-active-learning`
+   (enthält den neuen `GET /kalibrierung`-Endpunkt).
+2. **Zwei echte, unabhängige Kalibrierungsläufe** gegen `shared/data` ausgeführt
+   (`docker run … pmplus-step6-calibration`, `MOCK_LLM_RESPONSE=1`, zweimal
+   hintereinander) – `shared/data/kalibrierung_verlauf.csv` enthält danach
+   nachweislich **zwei** echte, unterschiedliche Zeilen (τ₀ 0.665→0.600, σ₀
+   konstant ≈0.0247, Eskalationsrate 30,0 %→25,0 %, Anteil "Trügerische Ruhe"
+   beide Male 15,0 %) – bestätigt, dass angehängt statt überschrieben wird.
+3. **Backend-Container gestartet** (`-p 8007:8000`, `shared/data` gemountet),
+   `GET /kalibrierung` live per `curl` abgefragt – echte JSON-Antwort mit
+   `verlauf` (beide Läufe) und `aktuell` (der zeitlich letzte Lauf, korrekt).
+   **Fail-safe-Test:** `kalibrierung_verlauf.csv` temporär umbenannt →
+   `GET /kalibrierung` liefert `{"verlauf": [], "aktuell": null, "hinweis": "…"}`
+   statt eines Absturzes oder einer falschen leeren Erfolgsantwort; Datei danach
+   zurückbenannt. **Regressionscheck:** `GET /eskalationen` währenddessen
+   unverändert funktionsfähig (20 Einträge, wie zuvor).
+4. **JS-Syntaxprüfung des echten `kalibrierung.js`** (JavaScriptCore via
+   `osascript -l JavaScript`, kein Node.js verfügbar): `new Function(source)`
+   parst fehlerfrei.
+5. **Ausführung der echten `kalibrierung.js`-Funktionen** (Original-Modul,
+   Browser-Stubs für `window`/`document`/`module`/`URLSearchParams`) gegen die
+   echte, per `curl` eingefangene `GET /kalibrierung`-Antwort – **12
+   automatisierte Checks, alle bestanden**: `formatPercent`/`formatNumber`
+   korrekt (inkl. `null` → "–", kein Fake-Wert); `sortByZeitstempelAsc` stellt
+   die echte chronologische Reihenfolge wieder her, auch wenn die Eingabe
+   umgekehrt sortiert ist; `renderVerlaufRow` und `renderAktuell` zeigen die
+   echten τ₀-Werte (0.665/0.600) und Eskalationsraten (30,0 %/25,0 %) aus der
+   echten Antwort; `renderAktuell(null)` versteckt die Sektion statt
+   Nullwerte/Fake-Zahlen anzuzeigen (Fail-safe, Leitplanke 5); `FetchFailure`/
+   `BackendNotReady` korrekt als eigenständige `Error`-Subklassen.
+6. **HTML-Wohlgeformtheit** von `kalibrierung.html` (Python `html.parser`)
+   geprüft; alle `getElementById`-Aufrufe in `kalibrierung.js` gegen
+   `kalibrierung.html` abgeglichen (`retry-btn` fehlt dort absichtlich – wird
+   dynamisch in `renderError`/`renderHinweis` erzeugt, gleiches Muster wie
+   `app.js`/`verlauf.js`). `style.css`-Klammerbalance (130/130) geprüft.
+
+**Nicht geprüft** (weil ohne echten Browser nicht möglich, wie bei F01–F03):
+tatsächliches CSS-Rendering/Layout der neuen Kennzahlen-Kacheln/Tabelle,
+Verhalten bei sehr kleinen Bildschirmbreiten, Screenreader-Verhalten.
+
+Erzeugte Test-Artefakte (`shared/data/kalibrierung_verlauf.csv`, der
+Test-Container `pmplus-step7-test`) wurden nach dem Test wieder entfernt.
 
 ### TICKET-F03 (Entscheidungserfassung mit erzwungener Provenienz)
 

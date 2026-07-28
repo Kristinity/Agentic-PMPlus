@@ -63,8 +63,8 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 | [F02](TICKET-F02-Eskalations-Review.md) | Eskalations-Review (PGP/LLM getrennt) | frontend-dev | Hoch | B04, B03 | ✅ | ✅ erledigt |
 | [F03](TICKET-F03-Entscheidungserfassung.md) | Entscheidungserfassung mit erzwungener Provenienz | frontend-dev | Hoch | B05, F02 (lose: B08) | ✅ | ✅ erledigt |
 | [F05](TICKET-F05-Audit-Trail.md) | Audit-Trail | frontend-dev | Mittel | B06 | – | ✅ erledigt |
-| [F06](TICKET-F06-Kalibrierungs-Gesundheit.md) | Kalibrierungs-Gesundheit (optional) | frontend-dev | Niedrig | B07 | – | offen |
-| [F07](TICKET-F07-Kosten-Transparenz.md) | Kosten-Transparenz-Hinweis (optional) | frontend-dev | Niedrig | F02 oder F05 | – | offen |
+| [F06](TICKET-F06-Kalibrierungs-Gesundheit.md) | Kalibrierungs-Gesundheit (optional) | frontend-dev | Niedrig | B07 | – | ✅ erledigt |
+| [F07](TICKET-F07-Kosten-Transparenz.md) | Kosten-Transparenz-Hinweis (optional) | frontend-dev | Niedrig | F02 oder F05 | – | ✅ erledigt |
 
 **MVP für den ersten Live-Prototyp (Jens kann durchklicken):** B01, B02, B03, B05, B04,
 F01, F02, F03. Diese acht Tickets ergeben einen vollständigen Durchlauf: Warteschlange

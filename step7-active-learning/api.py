@@ -26,6 +26,14 @@ Pflicht, sonst lehnt die Validierung mit 422 ab.
 TICKET-B06 (step8-live-test/Produkt-Backlog/TICKET-B06-GET-Verlauf.md):
 GET /verlauf - chronologischer Audit-Trail aus store.list_entscheidungen().
 
+TICKET-F06 (step8-live-test/Produkt-Backlog/TICKET-F06-Kalibrierungs-Gesundheit.md):
+GET /kalibrierung - liest die von step6-calibration/main.py (TICKET-B07,
+append_kalibrierung_verlauf) gefuehrte KALIBRIERUNG_VERLAUF_PATH-CSV (ein echter
+Kalibrierungslauf pro Zeile: tau0/sigma0/Eskalationsrate/Anteil "truegerische Ruhe")
+und liefert Historie + letzten Lauf. Getrennter, technischerer Endpunkt fuer die
+Person, die Step 6/7 betreut - NICHT fuer Jens (Produktionsplaner), siehe
+Active-Learning-Loop-und-Frontend-Konzept.md Abschnitt 2.3.5.
+
 TICKET-B09 (step8-live-test/Produkt-Backlog/TICKET-B09-Praeferenzpaar-Export.md):
 jede gespeicherte Entscheidung wird zusaetzlich, angereichert mit dem
 PGP/LLM-Kontext aus tau_vergleich.csv zum Entscheidungszeitpunkt, an
@@ -103,6 +111,13 @@ TAU_VERGLEICH_PATH = os.environ.get(
     "TAU_VERGLEICH_PATH", os.path.join("shared_data", "tau_vergleich.csv")
 )
 
+# TICKET-F06 (step8-live-test/Produkt-Backlog/TICKET-F06-Kalibrierungs-Gesundheit.md):
+# von step6-calibration/main.py (TICKET-B07, append_kalibrierung_verlauf) gefuehrte
+# Verlaufs-CSV - ein echter Kalibrierungslauf pro Zeile.
+KALIBRIERUNG_VERLAUF_PATH = os.environ.get(
+    "KALIBRIERUNG_VERLAUF_PATH", os.path.join("shared_data", "kalibrierung_verlauf.csv")
+)
+
 
 def _safe(value):
     """pandas/numpy-Skalare -> native Python-Typen fuer sauberes JSON."""
@@ -150,6 +165,40 @@ def get_eskalationen():
 
     eskalationen.sort(key=lambda e: e["pgp"]["rank"])
     return {"eskalationen": eskalationen}
+
+
+@router.get("/kalibrierung")
+def get_kalibrierung():
+    """TICKET-F06: eigener, technischerer Endpunkt fuer die Person, die Step 6/7
+    betreut (Active-Learning-Loop-und-Frontend-Konzept.md 2.3.5) - NICHT Teil von
+    GET /eskalationen/GET /verlauf, die fuer Jens (Produktionsplaner) gedacht sind.
+    Liest KALIBRIERUNG_VERLAUF_PATH (von step6-calibration/main.py gefuehrt, ein
+    echter Lauf pro Zeile) und liefert die volle Historie plus "aktuell" (der
+    zeitlich letzte Lauf) als bequemen Einzelwert, ohne eine neue Berechnung
+    vorzunehmen - jede Zahl stammt 1:1 aus einem tatsaechlich gelaufenen
+    Kalibrierungslauf. Fail-safe analog GET /eskalationen: fehlt die Datei (Step 6
+    noch nie mit dem F06-Patch gelaufen), wird das als "hinweis" gemeldet, nicht
+    als leere/fake Historie kaschiert."""
+    if not os.path.exists(KALIBRIERUNG_VERLAUF_PATH):
+        return {
+            "verlauf": [],
+            "aktuell": None,
+            "hinweis": (
+                f"{KALIBRIERUNG_VERLAUF_PATH} nicht gefunden - Step 6 noch nicht "
+                "(mit TICKET-F06-Unterstuetzung) gelaufen?"
+            ),
+        }
+
+    df = pd.read_csv(KALIBRIERUNG_VERLAUF_PATH)
+    verlauf = [
+        {col: _safe(getattr(r, col)) for col in df.columns}
+        for r in df.itertuples(index=False)
+    ]
+    # zeitstempel ist ISO-8601 (datetime.now(timezone.utc).isoformat() in
+    # step6-calibration/main.py) -> String-Sortierung reicht (lexikographisch
+    # korrekt), gleiches Muster wie GET /verlauf (B06).
+    verlauf.sort(key=lambda v: v["zeitstempel"])
+    return {"verlauf": verlauf, "aktuell": verlauf[-1] if verlauf else None}
 
 
 class EntscheidungRequest(BaseModel):

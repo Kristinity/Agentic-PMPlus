@@ -46,6 +46,28 @@
  *      legitimer, sichtbar anders dargestellter Zustand (renderEmpty) - kein
  *      Fehler, aber auch keine stillschweigend generierte "Liste".
  *
+ * TICKET-F07 (step8-live-test/Produkt-Backlog/TICKET-F07-Kosten-Transparenz.md):
+ * ergaenzt einen Kosten-Transparenz-Kasten (renderKostenBox), der GET /kalibrierung
+ * (TICKET-F06, ../api.py) laedt und anzeigt, wie oft/wofuer das LLM ueberhaupt
+ * aufgerufen wird. WICHTIGE, EHRLICHE ABWEICHUNG von der urspruenglichen
+ * Ticket-Formulierung ("Erkennbar, dass ein LLM-Ranking nur fuer Eskalationsfaelle
+ * angefragt wurde") und von Frontend-Backlog.md Abschnitt 6: das stimmt in der
+ * AKTUELLEN Architektur so NICHT - step6-calibration/main.py ruft das LLM genau
+ * EINMAL pro Kalibrierungslauf fuer ALLE offenen Auftraege gemeinsam auf (ein
+ * einziger Anthropic-Tool-Use-Call, keine Eskalations-Vorfilterung). Das ist kein
+ * Bug, sondern strukturell zwingend: der Eskalationsstatus (ampel_status) wird erst
+ * AUS diesem LLM-Ranking abgeleitet (tau = Rangdifferenz PGP vs. LLM) - eine
+ * Vorfilterung auf "nur Eskalationsfaelle" ist ein Henne-Ei-Problem, bevor das
+ * Ranking existiert, ist unbekannt, welche Faelle eskalieren wuerden. Statt eine
+ * falsche Behauptung anzuzeigen ("nur bei Eskalation angefragt"), zeigt
+ * renderKostenBox die tatsaechlich zutreffende, wirtschaftlich ebenso relevante
+ * Eigenschaft (User Story #12, Kernanliegen "nicht pauschal fuer jede
+ * Entscheidung"): KEINE Planer-Entscheidung (POST /entscheidung, s. ../api.py)
+ * loest jemals einen LLM-Call aus - die gesamte LLM-Nutzung ist der EINE
+ * gebuendelte Kalibrierungslauf, sichtbar mit Zeitstempel und Auftragsanzahl.
+ * Diese Abweichung wird hier UND im UI-Text selbst dokumentiert, nicht
+ * stillschweigend "passend gemacht".
+ *
  * Kein Build-Schritt, kein Framework - siehe frontend/README.md.
  */
 
@@ -176,6 +198,46 @@
     }
   }
 
+  // TICKET-F07: laedt GET /kalibrierung (TICKET-F06, bereits vorhanden - kein
+  // neuer Backend-Endpunkt fuer diesen Kosten-Transparenz-Hinweis noetig).
+  // Bewusst eine EIGENE, von fetchVerlauf() unabhaengige Funktion: schlaegt sie
+  // fehl, soll das den eigentlichen Audit-Trail (die Kernfunktion dieser Seite)
+  // NICHT blockieren (s. renderKostenBox/load).
+  async function fetchKalibrierung() {
+    let response;
+    try {
+      response = await fetch(`${API_BASE}/kalibrierung`);
+    } catch (networkError) {
+      throw new FetchFailure(
+        "Kosten-Transparenz-Daten konnten nicht geladen werden (Netzwerkfehler).",
+        networkError
+      );
+    }
+    if (!response.ok) {
+      throw new FetchFailure(
+        `Backend antwortete mit Status ${response.status}.`,
+        null
+      );
+    }
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      throw new FetchFailure(
+        "Antwort des Backends war kein gueltiges JSON.",
+        parseError
+      );
+    }
+    if (!data || !Array.isArray(data.verlauf)) {
+      throw new FetchFailure(
+        "Antwort des Backends hatte nicht die erwartete Form " +
+          '(Feld "verlauf" fehlt oder ist keine Liste).',
+        null
+      );
+    }
+    return data;
+  }
+
   // --- Sortierung ------------------------------------------------------------
   // AC: "Chronologische Liste". Die API liefert bereits ASC nach zeitstempel
   // sortiert (api.py/store.py: "ORDER BY zeitstempel ASC") - hier trotzdem
@@ -273,6 +335,58 @@
     );
   }
 
+  function formatZeitpunktKurz(iso) {
+    if (!iso) return "unbekannter Zeitpunkt";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return String(iso);
+    return date.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  // TICKET-F07: zeigt die tatsaechlich zutreffende Kosten-Eigenschaft (s.
+  // Modulkopf fuer die ausfuehrliche Begruendung der Abweichung von der
+  // urspruenglichen Ticket-Formulierung) statt einer falschen Behauptung.
+  // aktuell === null (Feld existiert, aber kein Lauf bisher) wird explizit
+  // als eigener Zustand gezeigt, nicht mit dem Fehlerfall verwechselt.
+  function renderKostenBox(aktuell) {
+    const section = document.getElementById("kosten-section");
+    if (!aktuell) {
+      section.innerHTML = `
+        <p class="kosten-hinweis">
+          💶 <strong>Kosten-Transparenz:</strong> Noch kein protokollierter
+          Kalibrierungslauf (Step 6) gefunden - keine LLM-Nutzungsdaten verfügbar.
+        </p>
+      `;
+      return;
+    }
+    section.innerHTML = `
+      <p class="kosten-hinweis">
+        💶 <strong>Kosten-Transparenz:</strong> Keine Planer-Entscheidung auf
+        dieser Seite löst einen LLM-Aufruf aus. Die gesamte LLM-Nutzung ist ein
+        <strong>einziger, gebündelter API-Call</strong> pro Kalibrierungslauf
+        (Step 6) für <strong>alle</strong> offenen Aufträge gemeinsam - zuletzt
+        am ${escapeHtml(formatZeitpunktKurz(aktuell.zeitstempel))} für
+        ${escapeHtml(aktuell.n_auftraege)} Aufträge (kein Call pro Auftrag,
+        kein Call pro Entscheidung).
+      </p>
+      <p class="kosten-hinweis-einschraenkung">
+        Hinweis zur Genauigkeit: dieser eine Call deckt aktuell ALLE offenen
+        Aufträge ab, nicht nur die später als Eskalation markierten Fälle - der
+        Eskalationsstatus wird ja erst aus diesem Ranking abgeleitet
+        (<a href="kalibrierung.html">Details unter Kalibrierungs-Gesundheit</a>).
+      </p>
+    `;
+  }
+
+  function renderKostenBoxError(err) {
+    const section = document.getElementById("kosten-section");
+    section.innerHTML = `
+      <p class="kosten-hinweis kosten-hinweis-fehler" role="alert">
+        💶 <strong>Kosten-Transparenz derzeit nicht verfügbar:</strong>
+        ${escapeHtml(err.message)}
+      </p>
+    `;
+  }
+
   function showStatus(html) {
     document.getElementById("status-region").innerHTML = html;
   }
@@ -300,6 +414,18 @@
 
   // --- Orchestrierung --------------------------------------------------------
 
+  // TICKET-F07: unabhaengig vom eigentlichen Verlauf geladen - ein Fehler hier
+  // (z. B. Step 6 noch nie gelaufen) darf den Audit-Trail selbst nicht
+  // blockieren, deshalb eigener try/catch statt Teil von load().
+  async function loadKosten() {
+    try {
+      const data = await fetchKalibrierung();
+      renderKostenBox(data.aktuell);
+    } catch (err) {
+      renderKostenBoxError(err);
+    }
+  }
+
   async function load() {
     renderLoading();
     try {
@@ -317,6 +443,7 @@
   function init() {
     document.getElementById("reload-btn").addEventListener("click", load);
     load();
+    loadKosten();
   }
 
   if (document.readyState === "loading") {
@@ -335,6 +462,12 @@
       formatZeitstempel,
       PROVENIENZ,
       WAHL,
+      // TICKET-F07
+      formatZeitpunktKurz,
+      renderKostenBox,
+      renderKostenBoxError,
+      fetchKalibrierung,
+      FetchFailure,
     };
   }
 })();

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kalibrierungs-Gesundheit – Agentic-PMPlus</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Kalibrierungs-Gesundheit</h1>
+    <p class="app-subline">
+      Technischer Überblick für die Person, die Step 6/7 (τ/σ-Kalibrierung, Active
+      Learning Loop) betreut – <strong>nicht</strong> für den Tagesplaner. Diese Seite
+      ist bewusst nicht von der Auftrags-Warteschlange aus verlinkt.
+    </p>
+    <p class="app-nav"><a href="index.html">&larr; Zur Auftrags-Warteschlange</a></p>
+  </header>
+
+  <main id="app">
+    <section class="toolbar" aria-label="Aktionen">
+      <button id="reload-btn" type="button" class="reload-btn">Neu laden</button>
+    </section>
+
+    <div id="status-region" aria-live="polite">
+      <p id="loading-message" class="loading">Kalibrierungsdaten werden geladen …</p>
+    </div>
+
+    <section id="aktuell-section" class="kalibrierung-aktuell" hidden></section>
+
+    <section id="verlauf-section" hidden>
+      <h2>Verlauf über die letzten Kalibrierungsläufe</h2>
+      <div class="kalibrierung-table-wrap">
+        <table class="kalibrierung-table">
+          <thead>
+            <tr>
+              <th scope="col">Lauf-Zeitpunkt</th>
+              <th scope="col">τ₀</th>
+              <th scope="col">σ₀</th>
+              <th scope="col">Aufträge</th>
+              <th scope="col">Eskalationsrate</th>
+              <th scope="col">Anteil „Trügerische Ruhe“</th>
+            </tr>
+          </thead>
+          <tbody id="kalibrierung-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      <strong>Bootstrap-Platzhalter, keine belastbare Kalibrierung:</strong> τ₀/σ₀
+      stammen aus einer Coverage-Rastersuche gegen dieselbe Heuristik, mit der der PGP
+      selbst trainiert wurde (siehe Docstring in <code>step6-calibration/main.py</code>).
+      Echte Risk-Coverage-Kalibrierung braucht echte menschliche Präferenzurteile
+      (Active Learning Loop, Step 7) – bis dahin ist jede Zahl hier ein dokumentierter
+      Platzhalter, kein Beweis für Zuverlässigkeit. <code>step2-limits/Systemgrenzen.md</code>
+      Teil A.3: die Übertragung von Risk-Coverage-Prinzipien von LLM- auf
+      GP-Unsicherheit ist unbelegt.
+    </p>
+    <p>
+      Jede Zeile im Verlauf ist ein tatsächlich gelaufener Kalibrierungslauf (Step 6),
+      keine synthetische oder interpolierte Zeitreihe.
+    </p>
+  </footer>
+
+  <script src="kalibrierung.js" defer></script>
+</body>
+</html>

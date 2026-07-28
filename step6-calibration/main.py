@@ -42,8 +42,10 @@ direkt fuer einen eigenen Anthropic-API-Call um:
      befolgen (Systemgrenzen.md Teil C.1, Prompt-Injection ueber RAG-Kontext).
 """
 
+import csv
 import os
 import random
+from datetime import datetime, timezone
 
 import pandas as pd
 from anthropic import Anthropic
@@ -65,6 +67,19 @@ OUTPUT_PATH = os.environ.get(
 )
 # Kalibrierungs-Parameter (Bootstrap-Kalibrierung, s. Modulkopf).
 TARGET_ESCALATION_RATE = float(os.environ.get("TARGET_ESCALATION_RATE", "0.15"))
+
+# TICKET-F06 (step8-live-test/Produkt-Backlog/TICKET-F06-Kalibrierungs-Gesundheit.md):
+# eigene, ueber Laeufe hinweg ANHAENGENDE Verlaufs-CSV, getrennt von OUTPUT_PATH (das bei
+# jedem Lauf ueberschrieben wird und daher nur eine Momentaufnahme ist). Ohne diese Datei
+# gibt es keine echte "Eskalationsrate ueber Zeit" - siehe append_kalibrierung_verlauf.
+KALIBRIERUNG_VERLAUF_PATH = os.environ.get(
+    "KALIBRIERUNG_VERLAUF_PATH", os.path.join("shared_data", "kalibrierung_verlauf.csv")
+)
+KALIBRIERUNG_FIELDS = [
+    "zeitstempel", "tau0", "sigma0", "target_escalation_rate", "n_auftraege",
+    "n_robuste_uebereinstimmung", "n_truegerische_ruhe", "n_klarer_fall_fuer_review",
+    "eskalationsrate", "truegerische_ruhe_anteil",
+]
 
 SYSTEM_PROMPT = """Du bist ein unabhaengiger Produktionsplanungs-Assistent fuer K.S. GmbH \
 (Krasser Spass GmbH, Hersteller von Kronkorken/Drehverschluessen).
@@ -247,6 +262,41 @@ def compute_ampel_status(tau, sigma, tau0, sigma0):
     return "robuste_uebereinstimmung"
 
 
+def append_kalibrierung_verlauf(tau0, sigma0, target_escalation_rate, ampel_counts, n_auftraege,
+                                 path=KALIBRIERUNG_VERLAUF_PATH):
+    """TICKET-F06: haengt EINE Zeile fuer DIESEN tatsaechlichen Kalibrierungslauf an
+    KALIBRIERUNG_VERLAUF_PATH an (Header nur beim allerersten Lauf). Jede Zeile ist ein
+    echter, gelaufener Kalibrierungslauf - keine synthetische/interpolierte Zeitreihe.
+    eskalationsrate/truegerische_ruhe_anteil werden hier (nicht im Frontend) berechnet,
+    damit die Definition an genau einer Stelle liegt (Konzept-README.md 2x2-Matrix:
+    Eskalation = truegerische_ruhe ODER klarer_fall_fuer_review)."""
+    n_robust = ampel_counts.get("robuste_uebereinstimmung", 0)
+    n_truegerisch = ampel_counts.get("truegerische_ruhe", 0)
+    n_review = ampel_counts.get("klarer_fall_fuer_review", 0)
+    eskalationsrate = (n_truegerisch + n_review) / n_auftraege if n_auftraege else 0.0
+    truegerische_ruhe_anteil = n_truegerisch / n_auftraege if n_auftraege else 0.0
+
+    row = {
+        "zeitstempel": datetime.now(timezone.utc).isoformat(),
+        "tau0": tau0,
+        "sigma0": sigma0,
+        "target_escalation_rate": target_escalation_rate,
+        "n_auftraege": n_auftraege,
+        "n_robuste_uebereinstimmung": n_robust,
+        "n_truegerische_ruhe": n_truegerisch,
+        "n_klarer_fall_fuer_review": n_review,
+        "eskalationsrate": eskalationsrate,
+        "truegerische_ruhe_anteil": truegerische_ruhe_anteil,
+    }
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    file_exists = os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=KALIBRIERUNG_FIELDS)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+
 def main():
     print("=== step6-calibration ===")
     if MOCK_LLM:
@@ -292,6 +342,13 @@ def main():
 
     counts = result["ampel_status"].value_counts()
     print(f"\nVerteilung: {dict(counts)}")
+
+    # TICKET-F06: dieser Lauf wird zusaetzlich an die Kalibrierungs-Verlaufs-CSV
+    # angehaengt, damit GET /kalibrierung (step7-active-learning/api.py) eine echte
+    # Eskalationsrate/Anteil-"truegerische Ruhe" ueber Zeit zeigen kann statt nur den
+    # aktuellen Snapshot aus OUTPUT_PATH.
+    append_kalibrierung_verlauf(tau0, sigma0, TARGET_ESCALATION_RATE, counts, len(result))
+    print(f"-> {KALIBRIERUNG_VERLAUF_PATH} (TICKET-F06, ein Lauf angehaengt)")
 
 
 if __name__ == "__main__":

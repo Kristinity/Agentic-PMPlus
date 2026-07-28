@@ -30,6 +30,10 @@
       <button id="reload-btn" type="button" class="reload-btn">Neu laden</button>
     </section>
 
+    <!-- TICKET-F07: Kosten-Transparenz-Hinweis, unabhaengig vom Verlauf selbst
+         geladen (eigener Status, blockiert die Verlauf-Anzeige nicht). -->
+    <section id="kosten-section" class="kosten-box" aria-label="Kosten-Transparenz"></section>
+
     <div id="status-region" aria-live="polite">
       <p id="loading-message" class="loading">Verlauf wird geladen …</p>
     </div>
@@ -45,6 +49,12 @@
       hat diese Entscheidung automatisch übernommen (begrenzte Propagation).
       Das ist bewusst optisch von einer echten menschlichen Entscheidung (👤)
       unterschieden – nie eine "geheimnisvolle" Blackbox-Entscheidung.
+    </p>
+    <p>
+      <strong>Kosten-Transparenz (TICKET-F07):</strong> keine Planer-Entscheidung
+      auf dieser Seite löst jemals einen LLM-Aufruf aus – die einzige LLM-Nutzung
+      im gesamten Prototyp ist der gebündelte Kalibrierungslauf aus Step 6 (ein
+      einziger API-Call für alle offenen Aufträge gemeinsam, s. Kasten oben).
     </p>
   </footer>
 

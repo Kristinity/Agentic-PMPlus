@@ -799,3 +799,122 @@ body {
   letter-spacing: 0.02em;
   margin-bottom: 0.15rem;
 }
+
+/* TICKET-F06 – Kalibrierungs-Gesundheit (separate, technischere Seite) */
+
+.kalibrierung-aktuell {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+.kalibrierung-aktuell h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.kalibrierung-aktuell-zeitpunkt {
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  margin-top: 0;
+}
+
+.kalibrierung-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.8rem;
+}
+
+.kalibrierung-metric {
+  flex: 1 1 200px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+}
+
+.kalibrierung-metric-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kalibrierung-metric-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
+}
+
+.kalibrierung-metric-explain {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  margin-top: 0.2rem;
+}
+
+.kalibrierung-table-wrap {
+  overflow-x: auto;
+}
+
+.kalibrierung-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.kalibrierung-table th,
+.kalibrierung-table td {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.kalibrierung-table th {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kalibrierung-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* TICKET-F07 – Kosten-Transparenz-Hinweis (verlauf.html) */
+
+.kosten-box:empty {
+  display: none;
+}
+
+.kosten-hinweis {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-robust-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.kosten-hinweis-einschraenkung {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  margin: -0.6rem 0 1rem;
+  padding: 0 0.9rem;
+}
+
+.kosten-hinweis-fehler {
+  border-left-color: var(--color-unbekannt-border);
+  color: var(--color-muted);
+}
