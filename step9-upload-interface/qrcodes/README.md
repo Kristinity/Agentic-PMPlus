@@ -31,3 +31,13 @@ Uptime-Garantie; bei einem erneuten Ausfall während einer Präsentation hilft n
 Neustart des Tunnels (neue URL, neuer QR-Code). Dasselbe gilt für die beiden Tunnel
 hinter `expert-review-qrcode.png` (Frontend + Backend) – fällt einer der beiden aus,
 ist die gesamte kombinierte URL ungültig und beide Tunnel müssen neu gestartet werden.
+
+Die ursprünglichen Frontend-/Backend-Tunnel (`guards-condo-municipality-preston...`/
+`engineering-strips-hartford-cove...`) zeigten ab ca. 15:42 Uhr wiederholte
+QUIC-Verbindungsabbrüche zum Cloudflare-Edge (`failed to dial to edge with quic: timeout`)
+– vermutlich blockiert das genutzte Netzwerk UDP/QUIC-Traffic teilweise. Beide Tunnel
+wurden um 15:56 Uhr mit erzwungenem `--protocol http2` (statt des QUIC-Default) neu
+gestartet (neue URLs: `indicates-page-complicated-exit...`/
+`migration-productive-camel-theft...`) – seither stabil, keine weiteren
+Verbindungsfehler beobachtet. Bei einem erneuten Ausfall in ähnlichem Netzwerk zuerst
+`--protocol http2` probieren, bevor der QUIC-Default erneut versucht wird.
