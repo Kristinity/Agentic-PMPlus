@@ -14,6 +14,7 @@ dieselben main.py-Skripte aus step5-pgp/step6-calibration aufruft.
 """
 
 import os
+import shutil
 from datetime import date
 
 import pandas as pd
@@ -146,15 +147,23 @@ if run_clicked:
         with st.spinner("Priorisierung läuft (PGP-Training + unabhängige "
                          "LLM-Einschätzung, kann 10–30s dauern)…"):
             run_dir, new_ids = build_run_dir(RUNS_DIR, BASELINE_DATA_DIR, new_orders_df)
-            result = run_pipeline(
-                run_dir=run_dir,
-                as_of_date_iso=as_of.isoformat(),
-                mock_llm=not use_real_llm,
-                step5_dir=STEP5_DIR,
-                step6_dir=STEP6_DIR,
-                rag_documents_dir=RAG_DOCUMENTS_DIR,
-                new_order_ids=new_ids,
-            )
+            try:
+                result = run_pipeline(
+                    run_dir=run_dir,
+                    as_of_date_iso=as_of.isoformat(),
+                    mock_llm=not use_real_llm,
+                    step5_dir=STEP5_DIR,
+                    step6_dir=STEP6_DIR,
+                    rag_documents_dir=RAG_DOCUMENTS_DIR,
+                    new_order_ids=new_ids,
+                )
+            finally:
+                # run_dir wird nur fuer die Subprozess-Laeufe gebraucht - Ergebnis
+                # (result.result_df) liegt danach im Speicher. Ohne dieses Aufraeumen
+                # sammelt sich pro Klick ein neues tempfile.mkdtemp()-Verzeichnis
+                # unter RUNS_DIR an, das nie wieder geloescht wuerde (Streamlit-
+                # Container laeuft lange, RUNS_DIR waechst unbegrenzt).
+                shutil.rmtree(run_dir, ignore_errors=True)
 
         if not result.ok:
             st.error(result.error)
