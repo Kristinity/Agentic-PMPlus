@@ -36,7 +36,7 @@ AMPEL_LABEL = {
     "klarer_fall_fuer_review": "🔴 Klarer Fall für Review",
 }
 
-st.set_page_config(page_title="Agentic-PMPlus – Auftrags-Priorisierung", page_icon="📦",
+st.set_page_config(page_title="Agentic-PMPlus – Auftrags-Priorisierung", page_icon="📋✅",
                     layout="wide")
 
 st.title("📦 Neue Aufträge priorisieren")
@@ -78,6 +78,13 @@ edited_orders = st.data_editor(
                                                   help="z. B. Becksbrauerei"),
         "product_id": st.column_config.SelectboxColumn(
             "product_id", options=VALID_PRODUCT_IDS, required=True),
+        "is_sonderauftrag": st.column_config.CheckboxColumn(
+            "is_sonderauftrag", default=False,
+            help="Sonderanfertigung mit gesonderter Vergütung, unabhängig von "
+                 "zeitlicher Dringlichkeit. Nicht zu verwechseln mit 'priority' "
+                 "('normal'/'hoch') – priority beschreibt, wie dringend ein "
+                 "Auftrag zeitlich ist, is_sonderauftrag, ob er gesondert "
+                 "vergütet wird."),
         "variant": st.column_config.TextColumn("variant", help="optional"),
         "order_date": st.column_config.DateColumn("order_date", required=True,
                                                     format="YYYY-MM-DD"),
@@ -85,7 +92,9 @@ edited_orders = st.data_editor(
                                                   format="YYYY-MM-DD"),
         "is_rush": st.column_config.CheckboxColumn("is_rush", default=False),
         "priority": st.column_config.SelectboxColumn(
-            "priority", options=["normal", "hoch"], default="normal"),
+            "priority", options=["normal", "hoch"], default="normal",
+            help="Zeitliche Dringlichkeit – unabhängig vom 'is_sonderauftrag'-"
+                 "Flag (das beschreibt die Vergütungsart, nicht die Dringlichkeit)."),
         "quantity": st.column_config.NumberColumn("quantity", required=True,
                                                     min_value=1, step=1),
     },
@@ -197,12 +206,36 @@ if run_clicked:
             m3.metric(AMPEL_LABEL["klarer_fall_fuer_review"],
                       int(counts.get("klarer_fall_fuer_review", 0)))
 
+            # is_sonderauftrag wird von step5-pgp/step6-calibration noch nicht
+            # durchgereicht (das kommt erst mit TICKET-B11) - die Ergebnisdatei
+            # (df/tau_vergleich.csv) hat die Spalte also nicht. Wir kennen den
+            # Wert aber pro Zeile bereits aus new_orders_df (dem Eingabe-
+            # DataFrame vor prepare_new_orders) und new_ids (in derselben
+            # Zeilenreihenfolge von build_run_dir zurueckgegeben) - analog zum
+            # "Neu hochgeladen"-Muster unten, nur auf Basis der Eingabedaten
+            # statt der Ergebnisdatei.
+            def _is_truthy_flag(value):
+                if isinstance(value, bool):
+                    return value
+                if pd.isna(value):
+                    return False
+                return str(value).strip().lower() in ("true", "1")
+
+            sonderauftrag_order_ids = set()
+            if "is_sonderauftrag" in new_orders_df.columns:
+                sonderauftrag_order_ids = {
+                    order_id for order_id, flag in zip(new_ids, new_orders_df["is_sonderauftrag"])
+                    if _is_truthy_flag(flag)
+                }
+
             display_df = df.copy()
             display_df["Ampel"] = display_df["ampel_status"].map(AMPEL_LABEL)
             display_df["Neu hochgeladen"] = display_df["order_id"].isin(
                 result.new_order_ids).map({True: "🆕", False: ""})
-            show_cols = ["rank", "order_id", "Neu hochgeladen", "customer", "product_id",
-                         "due_date", "Ampel", "tau", "sigma", "pgp_begruendung",
+            display_df["Sonderauftrag"] = display_df["order_id"].isin(
+                sonderauftrag_order_ids).map({True: "⭐", False: ""})
+            show_cols = ["rank", "order_id", "Neu hochgeladen", "Sonderauftrag", "customer",
+                         "product_id", "due_date", "Ampel", "tau", "sigma", "pgp_begruendung",
                          "llm_begruendung"]
             show_cols = [c for c in show_cols if c in display_df.columns]
             st.dataframe(display_df[show_cols], use_container_width=True, hide_index=True)

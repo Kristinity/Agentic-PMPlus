@@ -160,6 +160,11 @@ def generate_orders(profile, products, start_date, weeks, rng, faker):
                 "order_id": order_id,
                 "customer": customer_name,
                 "product_id": product["id"],
+                # TICKET-B10: Schema-Parallelitaet zu step9-upload-interface/pipeline.py
+                # (ORDER_TEMPLATE_COLUMNS) - die Simulation kennt keine Sonderauftraege
+                # (dafuer gibt es im company_profile keine Erzeugungslogik), daher
+                # ehrlich immer False statt eine erfundene Zufallsquote.
+                "is_sonderauftrag": False,
                 "variant": f"{product['id']}-V{variant_idx}",
                 "order_date": order_date.isoformat(),
                 "due_date": (order_date + timedelta(days=due_in_days)).isoformat(),
@@ -265,7 +270,8 @@ def main():
     write_csv(calendar_rows, ["date", "is_working_day", "is_holiday"], "calendar.csv")
     write_csv(
         order_rows,
-        ["order_id", "customer", "product_id", "variant", "order_date", "due_date", "is_rush", "priority", "quantity"],
+        ["order_id", "customer", "product_id", "is_sonderauftrag", "variant",
+         "order_date", "due_date", "is_rush", "priority", "quantity"],
         "orders.csv",
     )
     write_csv(disruption_rows, ["week", "type", "target", "impact", "unit"], "disruptions.csv")

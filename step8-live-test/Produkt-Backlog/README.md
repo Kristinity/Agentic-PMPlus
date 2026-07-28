@@ -1,6 +1,6 @@
 # Product-Backlog – Live-Prototyp für Jens Pirinski
 
-**Stand:** 2026-07-27
+**Stand:** 2026-07-27 (Erweiterung 2026-07-28, s. Abschnitt "Erweiterung" unten)
 **Grundlage:** `step7-active-learning/Backend-Backlog.md`, `step7-active-learning/Frontend-Backlog.md`,
 `step8-live-test/Userstories.md`, `step7-active-learning/Architektur-Backend-Frontend-Schnittstelle.md`,
 `step7-active-learning/Active-Learning-Loop-und-Frontend-Konzept.md`.
@@ -46,6 +46,9 @@ berechnet UND sofort persistiert, statt sie vorher nur anzuzeigen.
 F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 ```
 
+Siehe auch den Abschnitt "Erweiterung (2026-07-28)" unten für eine eigene
+Abhängigkeitsübersicht der Sonderauftrags-Tickets (B10–B14/F08–F12).
+
 ## Ticket-Übersicht
 
 | ID | Titel | Rolle | Priorität | Abhängigkeiten | MVP? | Status |
@@ -65,6 +68,16 @@ F07 (Kosten-Transparenz) haengt lose von F02/F05 ab, kein Backend-Ticket noetig
 | [F05](TICKET-F05-Audit-Trail.md) | Audit-Trail | frontend-dev | Mittel | B06 | – | ✅ erledigt |
 | [F06](TICKET-F06-Kalibrierungs-Gesundheit.md) | Kalibrierungs-Gesundheit (optional) | frontend-dev | Niedrig | B07 | – | ✅ erledigt |
 | [F07](TICKET-F07-Kosten-Transparenz.md) | Kosten-Transparenz-Hinweis (optional) | frontend-dev | Niedrig | F02 oder F05 | – | ✅ erledigt |
+| [B10](TICKET-B10-Sonderauftrag-Kennzeichnung-Schema.md) | Sonderauftrags-Kennzeichnung (Datenschema) | backend-dev | Hoch | – | ✅ | ✅ erledigt |
+| [F08](TICKET-F08-Sonderauftrag-Erfassung.md) | Sonderauftrag-Erfassung in der Auftragstabelle | frontend-dev | Hoch | B10 | ✅ | ✅ erledigt |
+| [B11](TICKET-B11-Sonderwert-PGP-Feature.md) | Sondervergütungswert als PGP-Feature | backend-dev | Hoch | B10 | ✅ | offen |
+| [F09](TICKET-F09-Sonderwert-Erfassung-Anzeige.md) | Sondervergütungswert erfassen und anzeigen | frontend-dev | Hoch | B11, F08 | ✅ | offen |
+| [B12](TICKET-B12-Sonderauftrag-Provenienz-Log.md) | Provenienz-Log für Sonderauftrags-/Wertangaben | backend-dev | Mittel-Hoch | B10 (lose: B11) | – | offen |
+| [F10](TICKET-F10-Sonderauftrag-Provenienz-Anzeige.md) | Anzeige des Sonderauftrags-Provenienz-Logs | frontend-dev | Mittel | B12 | – | offen |
+| [B14](TICKET-B14-Eskalationen-Sonderauftrag-Feld.md) | `GET /eskalationen` um Sonderauftrags-Feld erweitern | backend-dev | Mittel | B11 (lose: B04) | – | offen |
+| [F12](TICKET-F12-Warteschlange-Sonderauftrag-Badge.md) | Sonderauftrag-Badge in der Warteschlange | frontend-dev | Mittel | B14 (lose: F08) | – | offen |
+| [B13](TICKET-B13-Sonderanfertigung-Produkttyp-Stammdaten.md) | Neuer Produkttyp "Sonderanfertigung" – Stammdaten | backend-dev | Niedrig | – | – | offen |
+| [F11](TICKET-F11-Sonderanfertigung-Auswahl-Spezifikation.md) | Sonderanfertigung auswählbar + Spezifikationsfeld | frontend-dev | Niedrig | B13 | – | offen |
 
 **MVP für den ersten Live-Prototyp (Jens kann durchklicken):** B01, B02, B03, B05, B04,
 F01, F02, F03. Diese acht Tickets ergeben einen vollständigen Durchlauf: Warteschlange
@@ -78,6 +91,10 @@ akzeptabel, für echten Einsatz nicht).
 
 **Post-MVP:** B06, B08, B09, F05, F06, F07.
 
+**Sonderauftrags-Erweiterung (2026-07-28):** B10, F08, B11, F09, B12, F10, B13, F11, B14,
+F12 – Details, Priorisierung und eigene Abhängigkeitsübersicht siehe Abschnitt
+"Erweiterung" unten.
+
 ## Nicht in diesem Backlog (weiterhin bewusst offen)
 
 Aus `Backend-Backlog.md`/`Architektur-Backend-Frontend-Schnittstelle.md` übernommen, hier
@@ -85,3 +102,85 @@ nicht neu entschieden: Authentifizierung/Autorisierung der API. (Konkretes Ähnl
 für die Propagation und der Wert von N sind inzwischen in B08 als dokumentierte
 Implementierungsentscheidung getroffen, s. `TICKET-B08-Propagation.md` – weiterhin
 empirisch mit echten Nutzungsdaten zu überprüfen, keine bewiesene Methode.)
+
+---
+
+## Erweiterung (2026-07-28): Sonderaufträge mit besonderer Vergütung
+
+**Auslöser:** Nutzeranfrage vom 2026-07-28 (Produktionsplaner-Perspektive, K.S. GmbH):
+"Spezialaufträge erfassen können, die besonders teuer vergütet werden, weil es
+Sonderanfertigungen sind, z. B. Drehverschluss mit 20cm Durchmesser für Events."
+Aufgearbeitet vom Produktanalyst-Agenten, verifiziert gegen `step5-pgp/main.py`,
+`step9-upload-interface/pipeline.py`/`app.py`, `step3-erp-simulation/main.py`/
+`company_profile.example.yaml`, `step6-calibration/main.py`. Korrespondierende
+User Stories: `step8-live-test/Userstories.md` #13–#17 (Abschnitt "Ergänzung").
+
+**Scope-Entscheidungen (vom Nutzer am 2026-07-28 getroffen, nicht vom Agenten):**
+1. Sowohl ein reines Erfassungs-/Gewichtungsfeld für den Sondervergütungswert (Story #14,
+   Tickets B11/F09) **als auch** ein strukturell neuer Produkttyp mit eigener BOM/Routing
+   für abweichende Durchmesser/Sonderanfertigungen (Story #15, Tickets B13/F11) sind Teil
+   des Backlogs – Letzteres war zunächst als "vermutlich zu großer Scope" zur Rückfrage
+   gestellt, wurde vom Nutzer aber ausdrücklich bestätigt.
+2. Generisches "Sonderauftrag"-Flag statt Hardcoding auf den Durchmesser-Beispielfall
+   (Story #13, Tickets B10/F08).
+3. Neues, separates Datenfeld statt Wiederverwendung des bestehenden, laut
+   `step5-pgp/main.py` nirgends gelesenen `priority`-Felds ("normal"/"hoch") – Verwechslung
+   von zeitlicher Dringlichkeit und wirtschaftlicher Sonderstellung vermeiden.
+
+**Wichtiger, an mehreren Stellen relevanter Befund aus der Verifikation:**
+`step6-calibration/main.py:load_open_orders` merged aus `orders.csv` explizit **nur**
+`order_date`/`quantity` dazu (Zeile 147: `orders = pd.read_csv(orders_path)[["order_id",
+"order_date", "quantity"]]`) – alle in `step5-pgp/main.py` erzeugten
+`pgp_priorisierung.csv`-Spalten (inkl. neuer Spalten aus B11) laufen dagegen unverändert
+durch den anschließenden Merge in `tau_vergleich.csv` durch. Ein neues PGP-Feature (B11)
+erreicht also automatisch `tau_vergleich.csv`, aber **nicht** automatisch den
+LLM-Kontext – das ist beabsichtigt (PGP hat "volle Einsicht", LLM "eingeschränkte
+Einsicht", `Konzept-README.md`) und in B11 als Akzeptanzkriterium festgehalten, nicht nur
+als Nebeneffekt.
+
+### Abhängigkeitsübersicht (Erweiterung)
+
+```
+B10 (Sonderauftrags-Kennzeichnung, Schema)
+ ├─> F08 (Erfassungs-UI in step9-upload-interface)
+ ├─> B11 (Sonderwert als PGP-Feature, step5-pgp/main.py)
+ │     ├─> F09 (Erfassung + Anzeige des Werts in step9-upload-interface)
+ │     └─> B14 (GET /eskalationen um Sonderauftrags-Feld erweitern)
+ │           └─> F12 (Badge in der Warteschlange, step7-active-learning/frontend)
+ └─> B12 (Provenienz-Log für Sonderauftrags-/Wertangaben, lose: B11)
+       └─> F10 (Anzeige des Provenienz-Logs in step9-upload-interface)
+
+B13 (Neuer Produkttyp "Sonderanfertigung", Stammdaten – unabhängiger Strang)
+ └─> F11 (Auswahl + Freitext-Spezifikationsfeld in step9-upload-interface)
+```
+
+**MVP der Sonderauftrags-Erweiterung** (deckt den Kern der Nutzeranforderung –
+"erfassen" + "in der Priorisierung berücksichtigt"): B10, F08, B11, F09.
+
+**Post-MVP, vor einem echten Pilotbetrieb aber governance-relevant:** B12, F10
+(Provenienz der Wertangaben – Systemgrenzen Teil D, hier erstmals auf Dateneingabe statt
+nur auf Entscheidungen angewendet), B14, F12 (Sichtbarkeit in der Warteschlange – bewusst
+niedriger priorisiert als B12/F10, da eine kosmetische Sichtbarkeitsverbesserung einer
+Governance-Leitplanke nachgeordnet wird).
+
+**Niedrigste Priorität, größter Scope, ausdrücklich als Annahme gekennzeichnet:** B13, F11
+(neuer Produkttyp für strukturell abweichende Sonderanfertigungen). TICKET-B13 hält
+ausdrücklich fest, dass die Frage, ob dafür eine neue Maschine/Presse nötig ist oder
+bestehende Werkzeuge mit zusätzlicher Rüstzeit ausreichen, eine reale, von K.S. GmbH zu
+beantwortende fachliche Frage ist – **kein technischer Default**, keine vom Agenten
+erfundene Kapazitätsannahme.
+
+### Zwei getrennte "Systeme" beachten (wichtig für die Umsetzung)
+
+Dieses Repository enthält zwei unterschiedliche Frontend-/Backend-Implementierungen:
+1. `step7-active-learning/frontend/*.js` + `step7-active-learning/api.py` – die
+   Warteschlange/Eskalations-Review/Entscheidungserfassung/Audit-Trail aus dem
+   ursprünglichen MVP (B01–B09/F01–F07).
+2. `step9-upload-interface/app.py` + `pipeline.py` (Streamlit) – das separate Werkzeug, in
+   dem neue Aufträge tatsächlich erfasst werden (führt step5/step6 als Subprozesse gegen
+   einen temporären Lauf-Ordner aus, zeigt das Ergebnis direkt im selben Bildschirm).
+
+Story #13/#14 (Sonderauftrag erfassen, Wert erfassen) betreffen primär **System 2**
+(Erfassung), Story #16 (Sichtbarkeit in der Warteschlange) primär **System 1**
+(Review/Entscheidung) – daher die getrennten B14/F12- bzw. B10/F08/B11/F09-Tickets mit
+unterschiedlichen Zieldateien.

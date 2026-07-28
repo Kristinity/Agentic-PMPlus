@@ -33,10 +33,19 @@ REQUIRED_ERP_FILES = ["orders.csv", "bom.csv", "routings.csv", "work_centers.csv
 # Schema von orders.csv (siehe step3-erp-simulation/main.py generate_orders) -
 # order_id wird beim Upload immer neu vergeben (siehe prepare_new_orders),
 # daher hier nicht als Pflichtfeld gelistet.
+#
+# is_sonderauftrag (TICKET-B10): generisches Flag "Sonderanfertigung mit
+# gesonderter Verguetung", bewusst NICHT ueber priority ("normal"/"hoch",
+# semantisch zeitliche Dringlichkeit) abgebildet. Anders als variant/priority
+# ist dieses Feld KEIN totes Feld: ab TICKET-B11 wird es tatsaechlich als
+# PGP-Feature in step5-pgp/main.py gelesen - bitte beim Aufraeumen/Refactoring
+# nicht als "unbenutzt" entfernen, ohne B11 zu pruefen.
 NEW_ORDER_REQUIRED_COLUMNS = ["customer", "product_id", "order_date", "due_date", "quantity"]
-NEW_ORDER_OPTIONAL_DEFAULTS = {"variant": None, "is_rush": False, "priority": "normal"}
-ORDER_TEMPLATE_COLUMNS = ["order_id", "customer", "product_id", "variant",
-                           "order_date", "due_date", "is_rush", "priority", "quantity"]
+NEW_ORDER_OPTIONAL_DEFAULTS = {"variant": None, "is_rush": False, "priority": "normal",
+                                "is_sonderauftrag": False}
+ORDER_TEMPLATE_COLUMNS = ["order_id", "customer", "product_id", "is_sonderauftrag",
+                           "variant", "order_date", "due_date", "is_rush", "priority",
+                           "quantity"]
 
 # Nur diese beiden Produkte existieren im simulierten Sortiment von K.S.
 # (siehe company_profile.example.yaml) - Freitext bei product_id wuerde die
@@ -52,6 +61,7 @@ def order_template_csv_bytes():
         "order_id": "",
         "customer": "Becksbrauerei",
         "product_id": "P-KK",
+        "is_sonderauftrag": "False",
         "variant": "",
         "order_date": "2026-07-27",
         "due_date": "2026-08-10",
@@ -82,6 +92,22 @@ def drop_empty_rows(df):
     return df[~df[present_required].isna().all(axis=1)].reset_index(drop=True)
 
 
+def _is_valid_boolean_value(value):
+    """True, wenn value eindeutig als Bool interpretierbar ist - echte
+    Bool-Objekte (z. B. aus dem data_editor-Checkbox-Widget), die Strings
+    'true'/'false' (Gross-/Kleinschreibung egal, wie in der Download-Vorlage)
+    oder 0/1. Alles andere (Freitext, Tippfehler, 2, 'ja'/'nein', ...) ist
+    NICHT valide - wird von validate_new_orders als Fehler gemeldet statt
+    stillschweigend als False interpretiert (TICKET-B10)."""
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "false", "1", "0")
+    if isinstance(value, (int, float)):
+        return value in (0, 1)
+    return False
+
+
 def validate_new_orders(df):
     """Prueft Pflichtspalten und product_id-Werte. Gibt eine Liste
     verstaendlicher Fehlermeldungen zurueck (leer = valide)."""
@@ -98,6 +124,16 @@ def validate_new_orders(df):
     if bad_products:
         errors.append(f"Unbekannte product_id-Werte: {', '.join(bad_products)}. "
                        f"Erlaubt: {', '.join(VALID_PRODUCT_IDS)}.")
+    if "is_sonderauftrag" in df.columns:
+        present = df["is_sonderauftrag"].dropna()
+        invalid = sorted({str(v) for v in present if not _is_valid_boolean_value(v)})
+        if invalid:
+            errors.append(
+                "Spalte 'is_sonderauftrag' enthaelt nicht-boolesche Werte: "
+                f"{', '.join(invalid)}. Erlaubt sind nur True/False "
+                "(Gross-/Kleinschreibung egal) bzw. 1/0 - leere Zellen sind ok "
+                "(werden als False interpretiert)."
+            )
     return errors
 
 
@@ -121,6 +157,17 @@ def prepare_new_orders(df, existing_order_ids):
             df[col] = default
         else:
             df[col] = df[col].fillna(default)
+    # is_sonderauftrag kommt aus dem CSV-Upload ggf. als String ("True"/"1")
+    # statt als echtes Bool an - validate_new_orders hat vorher schon
+    # sichergestellt, dass hier nur eindeutig boolesche Werte oder NaN (oben
+    # bereits per fillna(False) aufgefuellt) stehen, hier nur noch die
+    # einheitliche Normalisierung auf echtes bool fuer die kombinierte
+    # orders.csv (TICKET-B10).
+    if "is_sonderauftrag" in df.columns:
+        df["is_sonderauftrag"] = df["is_sonderauftrag"].apply(
+            lambda v: v if isinstance(v, bool)
+            else str(v).strip().lower() in ("true", "1")
+        )
     df["variant"] = df.apply(
         lambda r: r["variant"] if pd.notna(r["variant"]) and str(r["variant"]).strip()
         else f"{r['product_id']}-V1", axis=1)
@@ -171,6 +218,13 @@ def build_run_dir(runs_root, baseline_dir, new_orders_df=None):
         existing = pd.read_csv(orders_path)
         prepared, new_ids = prepare_new_orders(new_orders_df, set(existing["order_id"]))
         combined = pd.concat([existing, prepared], ignore_index=True)
+        # TICKET-B10-Rueckwaertskompatibilitaet: bestehende output_2024/2025/2026
+        # -Baseline-orders.csv-Dateien kennen is_sonderauftrag noch nicht - pd.concat
+        # erzeugt fuer diese (aelteren) Zeilen dann NaN in der Spalte, sobald neue
+        # Auftraege (die die Spalte ueber ORDER_TEMPLATE_COLUMNS immer mitbringen)
+        # angehaengt werden. Fehlende Angabe = kein Sonderauftrag, nicht "unbekannt".
+        if "is_sonderauftrag" in combined.columns:
+            combined["is_sonderauftrag"] = combined["is_sonderauftrag"].fillna(False)
         combined.to_csv(orders_path, index=False)
 
     return run_dir, new_ids
