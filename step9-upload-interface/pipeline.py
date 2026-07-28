@@ -246,8 +246,23 @@ def run_pipeline(run_dir, as_of_date_iso, mock_llm, step5_dir, step6_dir,
     pro Auftrag durch max_tokens=8192 ab, bevor ueberhaupt JSON zurueckkommt
     ("Keine JSON-Antwort gefunden" in step6-calibration/main.py), und die
     Kalibrierung scheitert komplett. Pinning haelt die Gesamtmenge nahe am
-    urspruenglich fuer step6 kalibrierten Umfang (~20 + wenige neue)."""
+    urspruenglich fuer step6 kalibrierten Umfang (~20 + wenige neue).
+
+    THREAD_LIMIT_ENV (Live-Test mit mehreren gleichzeitigen Nutzern, z.B.
+    Studierende ueber einen geteilten QR-Code): torch/gpytorch (step5-GP-
+    Training) nutzt standardmaessig ALLE Host-Kerne pro Prozess. Bei mehreren
+    gleichzeitigen "Priorisierung berechnen"-Klicks konkurrieren die Prozesse
+    dann um dieselben Kerne (Oversubscription) - gemessen: 1 Lauf solo 15.6s,
+    4 gleichzeitige Laeufe je ~100s (~6.4x langsamer). Mit OMP/MKL/OPENBLAS
+    auf 2 Threads begrenzt: 4 gleichzeitige Laeufe wieder bei ~14.6-14.9s je
+    Lauf, praktisch keine Verlangsamung. 2 ist ein pragmatischer Kompromiss
+    (kein exaktes Optimum ermittelt) fuer ca. 6 gleichzeitige Nutzer auf 12
+    Kernen; bei absehbar mehr gleichzeitigen Nutzern ggf. weiter reduzieren."""
+    THREAD_LIMIT_ENV = {
+        "OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2",
+    }
     env = os.environ.copy()
+    env.update(THREAD_LIMIT_ENV)
     env["ERP_DATA_DIR"] = run_dir
     env["RAG_DOCUMENTS_DIR"] = rag_documents_dir
     env["AS_OF_DATE"] = as_of_date_iso
@@ -270,6 +285,7 @@ def run_pipeline(run_dir, as_of_date_iso, mock_llm, step5_dir, step6_dir,
                           error="step5-pgp hat keine pgp_priorisierung.csv erzeugt.")
 
     env6 = os.environ.copy()
+    env6.update(THREAD_LIMIT_ENV)
     env6["PGP_RANKING_PATH"] = pgp_ranking_path
     env6["ORDERS_PATH"] = os.path.join(run_dir, "orders.csv")
     env6["LLM_CONTEXT_DIR"] = os.path.join(step6_dir, "llm_context")
