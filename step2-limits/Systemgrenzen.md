@@ -1,6 +1,6 @@
 # Systemgrenzen des Agentic-PMPlus-Konzepts
 
-**Stand:** 2026-07-26
+**Stand:** 2026-08-01
 **Erstellt von:** Search-Buddy (Teil A/B), Security-Buddy (Teil C) und Safety-Buddy (Teil D)
 — `.claude/agents/role/{search,security,safety}-buddy.md`
 **Grundlage:** `README.md` (Gesamtkonzept), `step1-feasibility/Benchmark-Analyse.md`
@@ -81,6 +81,27 @@ selbst, keine aus der Literatur übernommene, geprüfte Schnittstelle.
   überhaupt leistbar**, bevor der Active Learning Loop (Step 7) an der Kapazität der
   Planer statt an der Modellgüte scheitert.
 
+### A.8 Präferenzpaare aus dem Active Learning Loop sind keine Grundlage für ein eigenes LLM
+
+- Ein Preference-GP (**#1**, **#2**) ist gezielt dateneffizient konzipiert – der Sinn von
+  aktivem Preference-Learning (**#3**, **#4**, **#16**) ist gerade, mit *möglichst wenigen*
+  Vergleichsurteilen auszukommen. Die für den PGP-Betrieb ausreichende Datenmenge liegt
+  damit strukturell weit unter dem, was Fine-Tuning oder Training eines eigenen LLM braucht
+  (typischerweise Größenordnungen mehr Beispiele) – keine der 17 Quellen adressiert diesen
+  Übergang, weil beide Verfahrensklassen (GP-Preference-Learning vs. LLM-Training)
+  grundsätzlich unterschiedliche Datenbedarfsordnungen haben.
+- Die Idee, über den Active Learning Loop (Step 7) langfristig genug Präferenzpaare für ein
+  eigenes, lokal gehostetes LLM zu sammeln, widerspricht damit der eigenen Projektprämisse
+  (README.md, Ausgangssituation): "Wenig 'gut' strukturierte Daten für ein eigenes LLM oder
+  das Feintuning/Training eines Drittanbieter-LLMs" ist der ausdrückliche Grund, warum die
+  PGP+eingeschränktes-LLM+RAG-Architektur überhaupt gewählt wurde – der Loop liefert
+  strukturell nie genug Volumen, um zu dem zurückzukehren, was die Prämisse selbst als
+  nicht machbar ausschließt.
+- Die Context-Anreicherung (RAG, Step 4) ist davon unabhängig zu betrachten: validierte
+  Fälle fließen laut Konzept ohnehin zurück ins Context Engineering, unabhängig vom
+  PGP-Datenbedarf – das deckt den Wunsch nach "langfristig besserem Kontext" bereits ab,
+  ohne dass dafür ein eigenes LLM trainiert werden müsste.
+
 ---
 
 ## Teil B – Systemgrenzen auf Managementebene (sprachlich vereinfacht)
@@ -128,6 +149,16 @@ Sobald das System unterhalb einer bestimmten Unsicherheitsschwelle automatisch e
 (statt eine Person zu fragen), stellt sich die Governance-Frage, wer für diese
 Entscheidungen verantwortlich zeichnet. Das ist keine technische, sondern eine
 organisatorische Grenze, die vor einem Produktivbetrieb geklärt sein sollte.
+
+**7. Der Active Learning Loop ist kein Weg zu einem eigenen KI-Modell.**
+Die über den Loop gesammelten menschlichen Entscheidungen reichen von der Menge her aus, um
+das eingebaute Vorhersagemodell (PGP) zu verbessern – aber nicht annähernd, um daraus ein
+eigenes, im Haus betriebenes Sprachmodell zu trainieren. Das war auch nie das Ziel: Das
+Projekt wurde bewusst so aufgebaut, weil zu wenig geeignete Daten für ein eigenes Modell
+vorhanden sind (siehe README.md, Ausgangssituation) – dieselbe Datenknappheit gilt für die
+über den Loop gesammelten Rückmeldungen. Ein besserer, laufend wachsender Kontext für das
+LLM ist trotzdem möglich – das läuft aber über die separate Rückführung validierter Fälle
+ins Context Engineering (Step 4), nicht über das Trainieren eines eigenen Modells.
 
 ---
 
