@@ -29,6 +29,12 @@ gueltig_bis: null                     # null = bis auf Widerruf gueltig
 # Injection ueber RAG-Kontext ist eine dort explizit benannte Systemgrenze)
 autor: "Name/Rolle, wer dieses Dokument freigegeben hat"
 vertrauensstufe: "intern-verifiziert"  # intern-verifiziert | extern-ungeprueft
+                                        # | experten-entscheidung-ungeprueft (nur in
+                                        # shared/context/entwuerfe/, s. step7-active-learning/
+                                        # context_writeback.py - wird von build_index() unten
+                                        # wie jeder Wert != "intern-verifiziert" uebersprungen,
+                                        # bis ein Mensch das Dokument kuratiert hierher kopiert
+                                        # und diesen Wert explizit aendert)
 tags: ["beispiel", "template"]
 ---
 

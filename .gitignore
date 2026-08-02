@@ -7,3 +7,5 @@ shared/data/*
 !shared/data/.gitkeep
 shared/feedback/*
 !shared/feedback/.gitkeep
+shared/context/entwuerfe/*
+!shared/context/entwuerfe/.gitkeep

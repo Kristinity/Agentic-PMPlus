@@ -83,6 +83,18 @@ aktuellen Standes, keiner Transaktionsgarantie - fuer einen Single-User-
 Prototyp ohne Mehrbenutzerbetrieb (siehe Produkt-Backlog "Nicht in diesem
 Backlog": Auth/Mehrbenutzer sind explizit offen) eine akzeptable, hier
 dokumentierte Vereinfachung.
+
+TICKET-B15 (Context-Writeback, "zurueck ins Context Engineering" aus
+Konzept-README.md Ergebnis 3): nach dem Speichern einer menschlichen
+Entscheidung mit begruendung wird zusaetzlich zur Propagation ein
+RAG-Dokument-ENTWURF erzeugt (context_writeback.write_draft(), volle
+Begruendung inkl. Sicherheitsabwaegung im dortigen Modulkopf) und der Pfad
+als context_entwurf in der Antwort zurueckgegeben. GET /context-entwuerfe
+listet alle bisher erzeugten Entwuerfe. Entwuerfe landen in einem eigenen,
+beschreibbaren Verzeichnis (shared/context/entwuerfe/, s. docker-compose.yml)
+- NICHT im read-only gemounteten rag_documents/ - und werden erst durch
+manuelles Kuratieren (vertrauensstufe -> "intern-verifiziert") Teil des
+lebenden, von step4 indexierten Kontexts.
 """
 
 import csv
@@ -93,11 +105,14 @@ from fastapi import APIRouter
 from pydantic import BaseModel, model_validator
 from typing import Literal, Optional
 
+import context_writeback
 import propagation
 import rag_lookup
 import store
 
 router = APIRouter()
+
+ORDERS_PATH = os.environ.get("ORDERS_PATH", os.path.join("shared_data", "orders.csv"))
 
 VALIDATED_PREFERENCES_PATH = os.environ.get(
     "VALIDATED_PREFERENCES_PATH", os.path.join("shared_data", "validated_preferences.csv")
@@ -238,6 +253,53 @@ def _lookup_pgp_llm_context(order_id):
     }
 
 
+def _lookup_order_context(order_id):
+    """kunde/produkt fuer einen Auftrag aus shared_data/orders.csv (Step 3) -
+    bewusst NICHT tau_vergleich.csv, da orders.csv jeden je simulierten
+    Auftrag enthaelt, nicht nur aktuell offene/eskalierte. Spalten-Mapping:
+    CSV "customer"/"product_id" -> RAG-Schema "kunde"/"produkt" (siehe
+    step4-context-engineering/rag_documents/_template.md). None falls
+    order_id dort nicht existiert - fail-safe, kein Rateversuch, konsistent
+    mit propagation.find_similar_open_orders/rag_lookup.resolve_matched_docs.
+
+    Bewusst eine EIGENE, von _lookup_pgp_llm_context() getrennte Funktion:
+    deren Rueckgabedict wird in export_validated_preference() per **context
+    an csv.DictWriter(fieldnames=PREFERENCE_FIELDS) durchgereicht, die bei
+    unerwarteten Schluesseln mit ValueError abbricht - kunde/produkt duerfen
+    dort also nicht mit hineingemischt werden."""
+    if not os.path.exists(ORDERS_PATH):
+        return None
+    df = pd.read_csv(ORDERS_PATH)
+    match = df[df["order_id"] == order_id]
+    if match.empty:
+        return None
+    row = match.iloc[0]
+    return {"kunde": _safe(row.get("customer")), "produkt": _safe(row.get("product_id"))}
+
+
+def _write_context_draft(gespeichert):
+    """Ruft context_writeback.write_draft() best-effort auf (s. dortiger
+    Modulkopf) - NIE blockierend, die Entscheidung ist zu diesem Zeitpunkt
+    bereits massgeblich in SQLite persistiert. Abweichung vom sonstigen
+    "let it raise"-Stil dieser Datei bewusst: context_entwuerfe ist ein NEUER
+    Bind-Mount in genau dieser Aenderung (der eine plausibel falsch
+    konfigurierbare Flaeche), anders als shared_data/shared_feedback/
+    rag_documents, die seit dem ersten Commit bei jedem Lauf mitlaufen."""
+    try:
+        order_context = _lookup_order_context(gespeichert["order_id"]) or {}
+        return context_writeback.write_draft(
+            gespeichert,
+            kunde=order_context.get("kunde"),
+            produkt=order_context.get("produkt"),
+        )
+    except OSError as exc:
+        print(
+            f"WARNUNG: Context-Entwurf fuer Entscheidung #{gespeichert['id']} "
+            f"nicht geschrieben ({exc}) - Entscheidung bleibt gespeichert."
+        )
+        return None
+
+
 def export_validated_preference(entscheidung):
     """TICKET-B09: haengt die validierte Entscheidung an
     shared_data/validated_preferences.csv an."""
@@ -332,13 +394,28 @@ def post_entscheidung(payload: EntscheidungRequest):
     gespeichert = store.list_entscheidungen(order_id=payload.order_id)[-1]
     export_validated_preference(gespeichert)
     propagierte_faelle = _propagate_decision(payload, decision_id)
+    context_entwurf = _write_context_draft(gespeichert)
     return {
         "decision_id": decision_id,
         "zeitstempel": gespeichert["zeitstempel"],
         "entschieden_von": gespeichert["entschieden_von"],  # zur Verifikation: immer "mensch"
         # TICKET-B08: echte propagierte order_ids statt des bisherigen []-Platzhalters.
         "propagierte_faelle": propagierte_faelle,
+        # "zurueck ins Context Engineering" (Konzept-README.md Ergebnis 3) - Pfad des
+        # generierten, NOCH NICHT kuratierten Entwurfs, oder None wenn keine
+        # begruendung angegeben wurde (s. context_writeback.should_generate_draft).
+        "context_entwurf": context_entwurf,
     }
+
+
+@router.get("/context-entwuerfe")
+def get_context_entwuerfe():
+    """Listet die per Context-Writeback erzeugten, noch nicht kuratierten
+    RAG-Dokument-Entwuerfe (context_writeback.list_drafts()) - fuer die
+    Person, die step4-context-engineering/rag_documents/ kuratiert. Rein
+    lesend; die Promotion in den lebenden Index bleibt bewusst eine manuelle
+    Dateisystem-Aktion (s. context_writeback.py Modulkopf)."""
+    return {"entwuerfe": context_writeback.list_drafts()}
 
 
 @router.get("/verlauf")

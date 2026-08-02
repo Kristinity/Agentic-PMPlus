@@ -125,6 +125,11 @@ services:
       - ./shared/feedback:/app/shared_feedback  # Entscheidungs-DB (TICKET-B02), uebersteht Container-Neustarts
       # RAG-Metadaten-Aufloesung (TICKET-B03), read-only wie bei step5/step6.
       - ./step4-context-engineering/rag_documents:/app/rag_documents:ro
+      # TICKET-B15 (Context-Writeback): r/w-Entwuerfe-Verzeichnis fuer neu erzeugte
+      # RAG-Dokument-Entwuerfe, bewusst GETRENNT von der obigen :ro-Mount -
+      # step7 darf nie in den lebenden, indexierten RAG-Bestand schreiben (s.
+      # context_writeback.py Modulkopf).
+      - ./shared/context/entwuerfe:/app/context_entwuerfe
     networks:
       - pmplus-net
     depends_on:
